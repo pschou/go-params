@@ -496,21 +496,21 @@ func (f *FlagSet) PrintDefaults() {
 				line.WriteString(" ")
 			}
 		}
-		//if _, ok := fs[0].Value.(*boolValue); ok && fs[0].Value.(*boolValue).Get() == false {
+		if _, ok := fs[0].Value.(*boolValue); ok && fs[0].Value.(*boolValue).Get() == false {
 
-		//if line.Len() == 2 {
-		//	fmt.Fprintf(f.Output(), "%s%s  %s\n", line.Bytes(), pad, fs[0].Usage)
-		//} else {
-		//	fmt.Fprintf(f.Output(), "%s\n%s    %s\n", line.Bytes(), pad, fs[0].Usage)
-		//}
-		//} else {
-		format := "%s%s  (%s%s)\n"
-		if _, ok := fs[0].Value.(*stringValue); ok {
-			// put quotes on the value
-			format = "%s%s  (%s%q)\n"
+			//if line.Len() == 2 {
+			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
+			//} else {
+			//	fmt.Fprintf(f.Output(), "%s\n%s    %s\n", line.Bytes(), pad, fs[0].Usage)
+			//}
+		} else {
+			format := "%s%s  (%s%s)\n"
+			if _, ok := fs[0].Value.(*stringValue); ok {
+				// put quotes on the value
+				format = "%s%s  (%s%q)\n"
+			}
+			fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs[0].DefValue)
 		}
-		fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs[0].DefValue)
-		//}
 	}
 }
 
