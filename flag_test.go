@@ -31,30 +31,30 @@ func boolString(s string) string {
 
 func TestEverything(t *testing.T) {
 	ResetForTesting(nil)
-	Bool("test_bool", false, "bool value")
-	Int("test_int", 0, "int value")
-	Int64("test_int64", 0, "int64 value")
-	Uint("test_uint", 0, "uint value")
-	Uint64("test_uint64", 0, "uint64 value")
-	String("test_string", "0", "string value")
-	Float64("test_float64", 0, "float64 value")
-	Duration("test_duration", 0, "time.Duration value")
-	//Func("test_func", "func value", func(string) error { return nil })
+	Bool("test_bool", false, "bool value", "")
+	Int("test_int", 0, "int value", "")
+	Int64("test_int64", 0, "int64 value", "")
+	Uint("test_uint", 0, "uint value", "")
+	Uint64("test_uint64", 0, "uint64 value", "")
+	String("test_string", "0", "string value", "")
+	Float64("test_float64", 0, "float64 value", "")
+	Duration("test_duration", 0, "time.Duration value", "")
+	Func("test_func", "func value", func(string) error { return nil }, "")
 
 	m := make(map[string]*Flag)
 	desired := "0"
 	visitor := func(f *Flag) {
-		if len(f.Name) > 5 && f.Name[0:5] == "test_" {
-			m[f.Name] = f
+		if len(f.Name[0]) > 5 && f.Name[0][0:5] == "test_" {
+			m[f.Name[0]] = f
 			ok := false
 			switch {
 			case f.Value.String() == desired:
 				ok = true
-			case f.Name == "test_bool" && f.Value.String() == boolString(desired):
+			case f.Name[0] == "test_bool" && f.Value.String() == boolString(desired):
 				ok = true
-			case f.Name == "test_duration" && f.Value.String() == desired+"s":
+			case f.Name[0] == "test_duration" && f.Value.String() == desired+"s":
 				ok = true
-			case f.Name == "test_func" && f.Value.String() == "":
+			case f.Name[0] == "test_func" && f.Value.String() == "":
 				ok = true
 			}
 			if !ok {
@@ -97,7 +97,7 @@ func TestEverything(t *testing.T) {
 	}
 	// Now test they're visited in sort order.
 	var flagNames []string
-	Visit(func(f *Flag) { flagNames = append(flagNames, f.Name) })
+	Visit(func(f *Flag) { flagNames = append(flagNames, f.Name[0]) })
 	if !sort.StringsAreSorted(flagNames) {
 		t.Errorf("flag names not sorted: %v", flagNames)
 	}
@@ -105,23 +105,23 @@ func TestEverything(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	ResetForTesting(nil)
-	Bool("test_bool", true, "bool value")
-	Int("test_int", 1, "int value")
-	Int64("test_int64", 2, "int64 value")
-	Uint("test_uint", 3, "uint value")
-	Uint64("test_uint64", 4, "uint64 value")
-	String("test_string", "5", "string value")
-	Float64("test_float64", 6, "float64 value")
-	Duration("test_duration", 7, "time.Duration value")
+	Bool("test_bool", true, "bool value", "")
+	Int("test_int", 1, "int value", "")
+	Int64("test_int64", 2, "int64 value", "")
+	Uint("test_uint", 3, "uint value", "")
+	Uint64("test_uint64", 4, "uint64 value", "")
+	String("test_string", "5", "string value", "")
+	Float64("test_float64", 6, "float64 value", "")
+	Duration("test_duration", 7, "time.Duration value", "")
 
 	visitor := func(f *Flag) {
-		if len(f.Name) > 5 && f.Name[0:5] == "test_" {
+		if len(f.Name[0]) > 5 && f.Name[0][0:5] == "test_" {
 			g, ok := f.Value.(Getter)
 			if !ok {
 				t.Errorf("Visit: value does not satisfy Getter: %T", f.Value)
 				return
 			}
-			switch f.Name {
+			switch f.Name[0] {
 			case "test_bool":
 				ok = g.Get() == true
 			case "test_int":
@@ -162,15 +162,15 @@ func testParse(f *FlagSet, t *testing.T) {
 	if f.Parsed() {
 		t.Error("f.Parse() = true before Parse")
 	}
-	boolFlag := f.Bool("bool", false, "bool value")
-	bool2Flag := f.Bool("bool2", false, "bool2 value")
-	intFlag := f.Int("int", 0, "int value")
-	int64Flag := f.Int64("int64", 0, "int64 value")
-	uintFlag := f.Uint("uint", 0, "uint value")
-	uint64Flag := f.Uint64("uint64", 0, "uint64 value")
-	stringFlag := f.String("string", "0", "string value")
-	float64Flag := f.Float64("float64", 0, "float64 value")
-	durationFlag := f.Duration("duration", 5*time.Second, "time.Duration value")
+	boolFlag := f.Bool("bool", false, "bool value", "")
+	bool2Flag := f.Bool("bool2", false, "bool2 value", "")
+	intFlag := f.Int("int", 0, "int value", "")
+	int64Flag := f.Int64("int64", 0, "int64 value", "")
+	uintFlag := f.Uint("uint", 0, "uint value", "")
+	uint64Flag := f.Uint64("uint64", 0, "uint64 value", "")
+	stringFlag := f.String("string", "0", "string value", "")
+	float64Flag := f.Float64("float64", 0, "float64 value", "")
+	durationFlag := f.Duration("duration", 5*time.Second, "time.Duration value", "")
 	extra := "one-extra-argument"
 	args := []string{
 		"--bool",
@@ -249,7 +249,7 @@ func TestUserDefined(t *testing.T) {
 	var flags FlagSet
 	flags.Init("test", ContinueOnError)
 	var v flagVar
-	flags.Var(&v, "v", "usage")
+	flags.Var(&v, "v", "usage", "")
 	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
 		t.Error(err)
 	}
@@ -340,7 +340,7 @@ func TestUserDefinedBool(t *testing.T) {
 	flags.Init("test", ContinueOnError)
 	var b boolFlagVar
 	var err error
-	flags.Var(&b, "b", "usage")
+	flags.Var(&b, "b", "usage", "")
 	if err = flags.Parse([]string{"-b", "-b", "-b", "-b=true", "-b=false", "-b", "barg", "-b"}); err != nil {
 		if b.count < 4 {
 			t.Error(err)
@@ -385,13 +385,13 @@ func TestChangingArgs(t *testing.T) {
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 	os.Args = []string{"cmd", "--before", "subcmd", "--after", "args"}
-	before := Bool("before", false, "")
+	before := Bool("before", false, "", "")
 	if err := CommandLine.Parse(os.Args[1:]); err != nil {
 		t.Fatal(err)
 	}
 	cmd := Arg(0)
 	os.Args = Args()
-	after := Bool("after", false, "")
+	after := Bool("after", false, "", "")
 	Parse()
 	args := Args()
 
@@ -406,7 +406,7 @@ func TestHelp(t *testing.T) {
 	fs := NewFlagSet("help test", ContinueOnError)
 	fs.Usage = func() { helpCalled = true }
 	var flag bool
-	fs.BoolVar(&flag, "flag", false, "regular flag")
+	fs.BoolVar(&flag, "flag", false, "regular flag", "")
 	// Regular flag invocation should work
 	err := fs.Parse([]string{"--flag"})
 	if err != nil {
@@ -432,7 +432,7 @@ func TestHelp(t *testing.T) {
 	}
 	// If we define a help flag, that should override.
 	var help bool
-	fs.BoolVar(&help, "help", false, "help flag")
+	fs.BoolVar(&help, "help", false, "help flag", "")
 	helpCalled = false
 	err = fs.Parse([]string{"--help"})
 	if err != nil {
@@ -443,49 +443,103 @@ func TestHelp(t *testing.T) {
 	}
 }
 
-const defaultOutput = `-A       for bootstrapping, allow 'any' type  (Default: false)
-    --Alongflagname disable bounds checking  (Default: false)
--C       a boolean defaulting to true  (Default: true)
--D       set relative path for local imports  (Default: "")
--E       issue 23543  (Default: "0")
--F STR   issue 23543  (Default: "0")
+const defaultOutput = `-A               for bootstrapping, allow 'any' type
+--Alongflagname  disable bounds checking
+-C               a boolean defaulting to true  (Default: true)
+-D               set relative path for local imports  (Default: "")
+-E               issue 23543  (Default: "0")
+-F STR           issue 23543  (Default: "0")
+-I               a non-zero number  (Default: 2.7)
+-K               a float that defaults to zero  (Default: 0)
+-M               a multiline
+                 help
+                 string  (Default: "")
+-N               a non-zero int  (Default: 27)
+-O               a flag
+                 multiline help string  (Default: true)
+-Z               an int that defaults to zero  (Default: 0)
+--maxT           set timeout for dial  (Default: 0s)
+`
+
+const defaultOutputMixed = `-A                   for bootstrapping, allow 'any' type
+    --Alongflagname  disable bounds checking
+-C                   a boolean defaulting to true  (Default: true)
+-D                   set relative path for local imports  (Default: "")
+-E                   issue 23543  (Default: "0")
+-F STR               issue 23543  (Default: "0")
+-I                   a non-zero number  (Default: 2.7)
+-K                   a float that defaults to zero  (Default: 0)
+-M                   a multiline
+                     help
+                     string  (Default: "")
+-N                   a non-zero int  (Default: 27)
+-O                   a flag
+                     multiline help string  (Default: true)
+-Z                   an int that defaults to zero  (Default: 0)
+-G, --grind STR      issue 23543  (Default: "0")
+    --maxT           set timeout for dial  (Default: 0s)
+`
+const defaultOutputMixedIndent = `-A          for bootstrapping, allow 'any' type
+    --Alongflagname  disable bounds checking
+-C          a boolean defaulting to true  (Default: true)
+-D          set relative path for local imports  (Default: "")
+-E          issue 23543  (Default: "0")
+-F STR      issue 23543  (Default: "0")
 -G, --grind STR  issue 23543  (Default: "0")
--I       a non-zero number  (Default: 2.7)
--K       a float that defaults to zero  (Default: 0)
--M       a multiline
-         help
-         string  (Default: "")
--N       a non-zero int  (Default: 27)
--O       a flag
-         multiline help string  (Default: true)
--Z       an int that defaults to zero  (Default: 0)
-    --maxT set timeout for dial  (Default: 0s)
+-I          a non-zero number  (Default: 2.7)
+-K          a float that defaults to zero  (Default: 0)
+-M          a multiline
+            help
+            string  (Default: "")
+-N          a non-zero int  (Default: 27)
+-O          a flag
+            multiline help string  (Default: true)
+-Z          an int that defaults to zero  (Default: 0)
+    --maxT  set timeout for dial  (Default: 0s)
 `
 
 func TestPrintDefaults(t *testing.T) {
 	fs := NewFlagSet("print defaults test", ContinueOnError)
 	var buf bytes.Buffer
 	fs.SetOutput(&buf)
-	var grind string
-	fs.Bool("A", false, "for bootstrapping, allow 'any' type")
-	fs.Bool("Alongflagname", false, "disable bounds checking")
-	fs.Bool("C", true, "a boolean defaulting to true")
-	fs.String("D", "", "set relative path for local imports")
-	fs.String("E", "0", "issue 23543")
+	fs.Bool("A", false, "for bootstrapping, allow 'any' type", "")
+	fs.Bool("Alongflagname", false, "disable bounds checking", "")
+	fs.Bool("C", true, "a boolean defaulting to true", "")
+	fs.Pres("世", "a present flag")
+	fs.String("D", "", "set relative path for local imports", "")
+	fs.String("E", "0", "issue 23543", "")
 	fs.String("F", "0", "issue 23543", "STR")
-	fs.StringVar(&grind, "grind", "0", "issue 23543", "STR", "G")
-	fs.Float64("I", 2.7, "a non-zero number")
-	fs.Float64("K", 0, "a float that defaults to zero")
-	fs.String("M", "", "a multiline\nhelp\nstring")
-	fs.Int("N", 27, "a non-zero int")
-	fs.Bool("O", true, "a flag\nmultiline help string")
-	fs.Int("Z", 0, "an int that defaults to zero")
-	fs.Duration("maxT", 0, "set timeout for dial")
+	fs.Float64("I", 2.7, "a non-zero number", "")
+	fs.Float64("K", 0, "a float that defaults to zero", "")
+	fs.String("M", "", "a multiline\nhelp\nstring", "")
+	fs.Int("N", 27, "a non-zero int", "")
+	fs.Bool("O", true, "a flag\nmultiline help string", "")
+	fs.String("世界", "hello", "unicode string", "")
+	fs.Int("Z", 0, "an int that defaults to zero", "")
+	fs.Duration("maxT", 0, "set timeout for dial", "")
 	fs.PrintDefaults()
 	got := buf.String()
 	fmt.Println(got)
 	if got != defaultOutput {
 		t.Errorf("got %q want %q\n", got, defaultOutput)
+	}
+
+	buf.Reset()
+	fs.String("grind G", "0", "issue 23543", "STR")
+	fs.PrintDefaults()
+	got = buf.String()
+	fmt.Println(got)
+	if got != defaultOutputMixed {
+		t.Errorf("got %q want %q\n", got, defaultOutputMixed)
+	}
+
+	buf.Reset()
+	fs.SetUsageIndent(12)
+	fs.PrintDefaults()
+	got = buf.String()
+	fmt.Println(got)
+	if got != defaultOutputMixedIndent {
+		t.Errorf("got %q want %q\n", got, defaultOutputMixedIndent)
 	}
 }
 
@@ -495,8 +549,8 @@ func TestIntFlagOverflow(t *testing.T) {
 		return
 	}
 	ResetForTesting(nil)
-	Int("i", 0, "")
-	Uint("u", 0, "")
+	Int("i", 0, "", "")
+	Uint("u", 0, "", "")
 	if err := Set("i", "2147483648"); err == nil {
 		t.Error("unexpected success setting Int")
 	}
@@ -556,13 +610,13 @@ func TestParseError(t *testing.T) {
 	for _, typ := range []string{"bool", "int", "int64", "uint", "uint64", "float64", "duration"} {
 		fs := NewFlagSet("parse error test", ContinueOnError)
 		//fs.SetOutput(io.Discard)
-		_ = fs.Bool("bool", false, "")
-		_ = fs.Int("int", 0, "")
-		_ = fs.Int64("int64", 0, "")
-		_ = fs.Uint("uint", 0, "")
-		_ = fs.Uint64("uint64", 0, "")
-		_ = fs.Float64("float64", 0, "")
-		_ = fs.Duration("duration", 0, "")
+		_ = fs.Bool("bool", false, "", "")
+		_ = fs.Int("int", 0, "", "")
+		_ = fs.Int64("int64", 0, "", "")
+		_ = fs.Uint("uint", 0, "", "")
+		_ = fs.Uint64("uint64", 0, "", "")
+		_ = fs.Float64("float64", 0, "", "")
+		_ = fs.Duration("duration", 0, "", "")
 		// Strings cannot give errors.
 		args := []string{"--" + typ + "=x"}
 		err := fs.Parse(args) // x is not a valid setting for any flag.
@@ -587,11 +641,11 @@ func TestRangeError(t *testing.T) {
 	for _, arg := range bad {
 		fs := NewFlagSet("parse error test", ContinueOnError)
 		//fs.SetOutput(io.Discard)
-		_ = fs.Int("int", 0, "")
-		_ = fs.Int64("int64", 0, "")
-		_ = fs.Uint("uint", 0, "")
-		_ = fs.Uint64("uint64", 0, "")
-		_ = fs.Float64("float64", 0, "")
+		_ = fs.Int("int", 0, "", "")
+		_ = fs.Int64("int64", 0, "", "")
+		_ = fs.Uint("uint", 0, "", "")
+		_ = fs.Uint64("uint64", 0, "", "")
+		_ = fs.Float64("float64", 0, "", "")
 		// Strings cannot give errors, and bools and durations do not return strconv.NumError.
 		err := fs.Parse([]string{arg})
 		if err == nil {
@@ -612,7 +666,7 @@ func TestExitCode(t *testing.T) {
 		fs := NewFlagSet("test", ExitOnError)
 		if os.Getenv("GO_CHILD_FLAG_HANDLE") != "" {
 			var b bool
-			fs.BoolVar(&b, os.Getenv("GO_CHILD_FLAG_HANDLE"), false, "")
+			fs.PresVar(&b, os.Getenv("GO_CHILD_FLAG_HANDLE"), "")
 		}
 		fs.Parse([]string{os.Getenv("GO_CHILD_FLAG")})
 		os.Exit(magic)
@@ -648,7 +702,7 @@ func TestExitCode(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		cmd := exec.Command(os.Args[0], "-test.run=TestExitCode")
+		cmd := exec.Command(os.Args[0], "--test.run=TestExitCode")
 		cmd.Env = append(
 			os.Environ(),
 			"GO_CHILD_FLAG="+test.flag,

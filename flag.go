@@ -47,6 +47,32 @@ var ErrHelp = errors.New("help requested")
 // Word for default
 var Default = "Default: "
 
+// -- Present Value
+type presentValue bool
+
+func newPresentValue(p *bool) *presentValue {
+	*p = false
+	return (*presentValue)(p)
+}
+
+func (b *presentValue) Set(s string) error {
+	*b = true
+	return nil
+}
+
+func (b *presentValue) Get() interface{} { return bool(*b) }
+
+func (b *presentValue) String() string { return fmt.Sprintf("%v", *b) }
+
+func (b *presentValue) IsPresentFlag() bool { return true }
+
+// optional interface to indicate boolean flags that can be
+// supplied without "=value" text
+type presentFlag interface {
+	Value
+	IsPresentFlag() bool
+}
+
 // -- bool Value
 type boolValue bool
 
@@ -199,6 +225,12 @@ func (d *durationValue) Get() interface{} { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
+type funcValue func(string) error
+
+func (f funcValue) Set(s string) error { return f(s) }
+
+func (f funcValue) String() string { return "" }
+
 // Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
 type Value interface {
@@ -242,7 +274,7 @@ type FlagSet struct {
 	exitOnError      bool     // does the program exit if there's an error?
 	errorHandling    ErrorHandling
 	output           io.Writer // nil means stderr; use out() accessor
-	UsageIndent      int
+	usageIndent      int
 
 	// FlagKnownAs allows different projects to customise what their flags are
 	// known as, e.g. 'flag', 'option', 'item'. All error/log messages
@@ -255,11 +287,34 @@ type FlagSet struct {
 
 // A Flag represents the state of a flag.
 type Flag struct {
-	Name         string // name as it appears on command line
-	Usage        string // help message
-	Value        Value  // value as set
-	DefValue     string // default value (as text); for usage message
-	TypeExpected string // helpful hint on what is expected
+	Name         []string // name as it appears on command line
+	Usage        string   // help message
+	Value        Value    // value as set
+	DefValue     string   // default value (as text); for usage message
+	TypeExpected string   // helpful hint on what is expected
+}
+
+// splitOnSpace, reads out a string and returns a slice
+func splitOnSpace(str string) (out []string) {
+	var line bytes.Buffer
+	for i := 0; i < len(str); {
+		r, size := utf8.DecodeRuneInString(str[i:])
+		if r == ' ' {
+			out = append(out, line.String())
+			line.Reset()
+		} else {
+			line.WriteRune(r)
+		}
+		i += size
+	}
+	out = append(out, line.String())
+	// Make sure the single char is second, if there is one
+	if len(out) > 1 { // TODO: fix for more than two
+		if rlen(out[0]) == 1 && rlen(out[1]) > 1 {
+			out[0], out[1] = out[1], out[0]
+		}
+	}
+	return
 }
 
 // sortFlags returns the flags as a slice in lexicographical sorted order.
@@ -267,7 +322,7 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 	list := make(sort.StringSlice, len(flags))
 	i := 0
 	for _, f := range flags {
-		list[i] = f.Name
+		list[i] = f.Name[0]
 		i++
 	}
 	list.Sort()
@@ -325,6 +380,20 @@ func (f *FlagSet) SetAllowIntersperse(allowIntersperse bool) {
 //   prog -flag1 -flag2 input1 input2
 func SetAllowIntersperse(allowIntersperse bool) {
 	CommandLine.allowIntersperse = allowIntersperse
+}
+
+// SetUsageIndent tells the DefaultPrinter how many spaces to add to before
+// printing the usage for each flag.  By default this is 0 and determined by
+// the maximum comma seperated name length.
+func (f *FlagSet) SetUsageIndent(usageIndent int) {
+	f.usageIndent = usageIndent
+}
+
+// SetUsageIndent tells the DefaultPrinter how many spaces to add to before
+// printing the usage for each flag.  By default this is 0 and determined by
+// the maximum comma seperated name length.
+func SetUsageIndent(usageIndent int) {
+	CommandLine.usageIndent = usageIndent
 }
 
 // VisitAll visits the flags in lexicographical order, calling fn for each.
@@ -388,6 +457,7 @@ func Set(name, value string) error {
 	return CommandLine.Set(name, value)
 }
 
+/*
 // flagsByLength is a slice of flags implementing sort.Interface,
 // sorting primarily by the length of the flag, and secondarily
 // alphabetically.
@@ -409,10 +479,17 @@ func (f flagsByLength) Len() int {
 
 // flagsByName is a slice of slices of flags implementing sort.Interface,
 // alphabetically sorting by the name of the first flag in each slice.
-type flagsByName [][]*Flag
+type flagsByName []*Flag
 
 func (f flagsByName) Less(i, j int) bool {
-	return f[i][0].Name < f[j][0].Name
+	var a, b int
+	if len(f[i].Name) > 1 {
+		a = 1
+	}
+	if len(f[j].Name) > 1 {
+		b = 1
+	}
+	return f[i].Name[a] < f[j].Name[b]
 }
 func (f flagsByName) Swap(i, j int) {
 	f[i], f[j] = f[j], f[i]
@@ -421,6 +498,7 @@ func (f flagsByName) Len() int {
 	return len(f)
 }
 
+*/
 /*
 func (f *FlagSet) ptrToVal(ptr string) (ret Value) {
 	f.VisitAll(func(f *Flag) {
@@ -432,6 +510,10 @@ func (f *FlagSet) ptrToVal(ptr string) (ret Value) {
 }
 */
 
+func rlen(s string) int {
+	return utf8.RuneCount([]byte(s))
+}
+
 // PrintDefaults prints, to standard error unless configured
 // otherwise, the default values of all defined flags in the set.
 // If there is more than one name for a given flag, the usage information and
@@ -439,77 +521,91 @@ func (f *FlagSet) ptrToVal(ptr string) (ret Value) {
 // if there are several equally short flag names).
 func (f *FlagSet) PrintDefaults() {
 	var maxLen int
+	var haveMultiple bool
 	// group together all flags for a given value
-	flags := make(map[interface{}]flagsByLength)
+	var flags [](*Flag)
+	var uniqueFlag = make(map[string]interface{})
 	f.VisitAll(func(f *Flag) {
-		flags[f.Value] = append(flags[f.Value], f)
-		if len(f.Name) > maxLen {
-			maxLen = len(f.Name)
+		if _, ok := uniqueFlag[f.Name[0]]; !ok {
+			uniqueFlag[f.Name[0]] = nil
+			flags = append(flags, f)
+			if len(f.Name[0]) > maxLen {
+				maxLen = len(f.Name[0])
+			}
+			if len(f.Name) > 1 {
+				haveMultiple = true
+			}
 		}
 	})
+	//sort.Sort(flags)
 
 	// sort the output flags by shortest name for each group.
-	var byName flagsByName
-	var haveMultiple bool
-	for _, f := range flags {
-		sort.Sort(f)
-		byName = append(byName, f)
-		if len(f) > 1 {
-			haveMultiple = true
-		}
-	}
-	sort.Sort(byName)
-	//pad := ""
-	//if haveMultiple {
-	//	pad = "      "
+	//var byName flagsByName
+	//for _, f := range flags {
+	//	sort.Sort(f)
+	//	byName = append(byName, f)
 	//}
+	padN := maxLen + 4
+	if haveMultiple {
+		padN = maxLen + 8
+	}
+	pad := "\n"
+	for (f.usageIndent == 0 && len(pad) <= padN) || len(pad) <= f.usageIndent {
+		pad += " "
+	}
 
 	var line bytes.Buffer
-	for _, fs := range byName {
+	for _, fs := range flags {
+		Names := fs.Name[:]
+		if len(Names) > 1 && rlen(Names[0]) > 1 && rlen(Names[1]) == 1 {
+			Names[0], Names[1] = Names[1], Names[0]
+		}
 		line.Reset()
-		if haveMultiple && len(fs[0].Name) > 1 {
+		if haveMultiple && rlen(Names[0]) > 1 && len(Names) == 1 {
 			line.WriteString("    ")
 		}
-		for i, f := range fs {
+		for i, n := range Names {
 			if i > 0 {
 				line.WriteString(", ")
 			}
-			line.WriteString(flagWithMinus(f.Name))
+			line.WriteString(flagWithMinus(n))
 		}
-		line.WriteString(" ")
-		if len(fs[0].TypeExpected) > 0 {
-			line.WriteString(fs[0].TypeExpected)
-			line.WriteString("  ")
+		if len(fs.TypeExpected) > 0 {
+			line.WriteString(" ")
+			line.WriteString(fs.TypeExpected)
 		}
-		usage := fs[0].Usage
-		if haveMultiple {
-			for line.Len() < 9 || line.Len() < f.UsageIndent {
-				line.WriteString(" ")
-			}
-			pad := "\n         "
-			for len(pad) < f.UsageIndent {
-				pad += " "
-			}
-			usage = strings.ReplaceAll(usage, "\n", pad)
-		} else if maxLen < 12 {
-			for line.Len()-3 < maxLen || line.Len() < f.UsageIndent-1 {
-				line.WriteString(" ")
-			}
+		line.WriteString("  ")
+		usage := fs.Usage
+
+		for (f.usageIndent == 0 && utf8.RuneCount(line.Bytes()) < padN) ||
+			utf8.RuneCount(line.Bytes()) < f.usageIndent {
+
+			line.WriteString(" ")
 		}
-		if _, ok := fs[0].Value.(*boolValue); ok && fs[0].Value.(*boolValue).Get() == false {
+		//if haveMultiple {
+		//} else {
+		//	for (f.usageIndent == 0 && line.Len() < maxLen+4) || line.Len() < f.usageIndent {
+		//		line.WriteString(" ")
+		//	}
+		//for line.Len()-3 < maxLen || line.Len() < f.usageIndent-1 {
+		//	line.WriteString(" ")
+		//}
+		//}
+		usage = strings.ReplaceAll(usage, "\n", pad)
+		if _, ok := fs.Value.(*presentValue); ok && fs.Value.(*presentValue).Get() == false {
 
 			//if line.Len() == 2 {
 			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
 			//} else {
-			//	fmt.Fprintf(f.Output(), "%s\n%s    %s\n", line.Bytes(), pad, fs[0].Usage)
+			//	fmt.Fprintf(f.Output(), "%s\n%s    %s\n", line.Bytes(), pad, fs.Usage)
 			//}
 		} else {
 			format := "%s%s  (%s%s)\n"
-			if _, ok := fs[0].Value.(*stringValue); ok {
+			if _, ok := fs.Value.(*stringValue); ok {
 				// put quotes on the value
 				format = "%s%s  (%s%q)\n"
 			}
-			fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs[0].DefValue)
+			fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
 		}
 	}
 }
@@ -573,212 +669,252 @@ func (f *FlagSet) Args() []string { return f.args }
 // Args returns the non-flag command-line arguments.
 func Args() []string { return CommandLine.args }
 
-// BoolVar defines a bool flag with specified name, default value, and usage string.
+// IsSetVar defines a bool flag with specified name and usage string.
 // The argument p points to a bool variable in which to store the value of the flag.
-func (f *FlagSet) BoolVar(p *bool, name string, value bool, usage string, typeExp ...string) {
-	f.Var(newBoolValue(value, p), name, usage, typeExp...)
+func (f *FlagSet) PresVar(p *bool, name string, usage string) {
+	f.Var(newPresentValue(p), name, usage, "")
 }
 
-// BoolVar defines a bool flag with specified name, default value, and usage string.
+// IsSetVar defines a bool flag with specified name and usage string.
 // The argument p points to a bool variable in which to store the value of the flag.
-func BoolVar(p *bool, name string, value bool, usage string, typeExp ...string) {
-	CommandLine.Var(newBoolValue(value, p), name, usage, typeExp...)
+func PresVar(p *bool, name string, usage string) {
+	CommandLine.Var(newPresentValue(p), name, usage, "")
 }
 
-// Bool defines a bool flag with specified name, default value, and usage string.
+// IsSetVar defines a bool flag with specified name and usage string.
 // The return value is the address of a bool variable that stores the value of the flag.
-func (f *FlagSet) Bool(name string, value bool, usage string) *bool {
+func (f *FlagSet) Pres(name string, usage string) *bool {
 	p := new(bool)
-	f.BoolVar(p, name, value, usage)
+	f.PresVar(p, name, usage)
+	return p
+}
+
+// IsSet defines a bool flag with specified name and usage string.
+// The return value is the address of a bool variable that stores the value of the flag.
+func Pres(name string, usage string) *bool {
+	return CommandLine.Pres(name, usage)
+}
+
+// BoolVar defines a bool flag with specified name, default value, and usage string.
+// The argument p points to a bool variable in which to store the value of the flag.
+func (f *FlagSet) BoolVar(p *bool, name string, value bool, usage string, typeExp string) {
+	f.Var(newBoolValue(value, p), name, usage, typeExp)
+}
+
+// BoolVar defines a bool flag with specified name, default value, and usage string.
+// The argument p points to a bool variable in which to store the value of the flag.
+func BoolVar(p *bool, name string, value bool, usage string, typeExp string) {
+	CommandLine.Var(newBoolValue(value, p), name, usage, typeExp)
+}
+
+// Bool defines a bool flag with specified name, default value, and usage string.
+// The return value is the address of a bool variable that stores the value of the flag.
+func (f *FlagSet) Bool(name string, value bool, usage string, typeExp string) *bool {
+	p := new(bool)
+	f.BoolVar(p, name, value, usage, typeExp)
 	return p
 }
 
 // Bool defines a bool flag with specified name, default value, and usage string.
 // The return value is the address of a bool variable that stores the value of the flag.
-func Bool(name string, value bool, usage string) *bool {
-	return CommandLine.Bool(name, value, usage)
+func Bool(name string, value bool, usage string, typeExp string) *bool {
+	return CommandLine.Bool(name, value, usage, typeExp)
 }
 
 // IntVar defines an int flag with specified name, default value, and usage string.
 // The argument p points to an int variable in which to store the value of the flag.
-func (f *FlagSet) IntVar(p *int, name string, value int, usage string, typeExp ...string) {
-	f.Var(newIntValue(value, p), name, usage, typeExp...)
+func (f *FlagSet) IntVar(p *int, name string, value int, usage string, typeExp string) {
+	f.Var(newIntValue(value, p), name, usage, typeExp)
 }
 
 // IntVar defines an int flag with specified name, default value, and usage string.
 // The argument p points to an int variable in which to store the value of the flag.
-func IntVar(p *int, name string, value int, usage string, typeExp ...string) {
-	CommandLine.Var(newIntValue(value, p), name, usage, typeExp...)
+func IntVar(p *int, name string, value int, usage string, typeExp string) {
+	CommandLine.Var(newIntValue(value, p), name, usage, typeExp)
 }
 
 // Int defines an int flag with specified name, default value, and usage string.
 // The return value is the address of an int variable that stores the value of the flag.
-func (f *FlagSet) Int(name string, value int, usage string, typeExp ...string) *int {
+func (f *FlagSet) Int(name string, value int, usage string, typeExp string) *int {
 	p := new(int)
-	f.IntVar(p, name, value, usage, typeExp...)
+	f.IntVar(p, name, value, usage, typeExp)
 	return p
 }
 
 // Int defines an int flag with specified name, default value, and usage string.
 // The return value is the address of an int variable that stores the value of the flag.
-func Int(name string, value int, usage string, typeExp ...string) *int {
-	return CommandLine.Int(name, value, usage, typeExp...)
+func Int(name string, value int, usage string, typeExp string) *int {
+	return CommandLine.Int(name, value, usage, typeExp)
 }
 
 // Int64Var defines an int64 flag with specified name, default value, and usage string.
 // The argument p points to an int64 variable in which to store the value of the flag.
-func (f *FlagSet) Int64Var(p *int64, name string, value int64, usage string, typeExp ...string) {
-	f.Var(newInt64Value(value, p), name, usage, typeExp...)
+func (f *FlagSet) Int64Var(p *int64, name string, value int64, usage string, typeExp string) {
+	f.Var(newInt64Value(value, p), name, usage, typeExp)
 }
 
 // Int64Var defines an int64 flag with specified name, default value, and usage string.
 // The argument p points to an int64 variable in which to store the value of the flag.
-func Int64Var(p *int64, name string, value int64, usage string, typeExp ...string) {
-	CommandLine.Var(newInt64Value(value, p), name, usage, typeExp...)
+func Int64Var(p *int64, name string, value int64, usage string, typeExp string) {
+	CommandLine.Var(newInt64Value(value, p), name, usage, typeExp)
 }
 
 // Int64 defines an int64 flag with specified name, default value, and usage string.
 // The return value is the address of an int64 variable that stores the value of the flag.
-func (f *FlagSet) Int64(name string, value int64, usage string, typeExp ...string) *int64 {
+func (f *FlagSet) Int64(name string, value int64, usage string, typeExp string) *int64 {
 	p := new(int64)
-	f.Int64Var(p, name, value, usage, typeExp...)
+	f.Int64Var(p, name, value, usage, typeExp)
 	return p
 }
 
 // Int64 defines an int64 flag with specified name, default value, and usage string.
 // The return value is the address of an int64 variable that stores the value of the flag.
-func Int64(name string, value int64, usage string, typeExp ...string) *int64 {
-	return CommandLine.Int64(name, value, usage, typeExp...)
+func Int64(name string, value int64, usage string, typeExp string) *int64 {
+	return CommandLine.Int64(name, value, usage, typeExp)
 }
 
 // UintVar defines a uint flag with specified name, default value, and usage string.
 // The argument p points to a uint variable in which to store the value of the flag.
-func (f *FlagSet) UintVar(p *uint, name string, value uint, usage string, typeExp ...string) {
-	f.Var(newUintValue(value, p), name, usage, typeExp...)
+func (f *FlagSet) UintVar(p *uint, name string, value uint, usage string, typeExp string) {
+	f.Var(newUintValue(value, p), name, usage, typeExp)
 }
 
 // UintVar defines a uint flag with specified name, default value, and usage string.
 // The argument p points to a uint  variable in which to store the value of the flag.
-func UintVar(p *uint, name string, value uint, usage string, typeExp ...string) {
-	CommandLine.Var(newUintValue(value, p), name, usage, typeExp...)
+func UintVar(p *uint, name string, value uint, usage string, typeExp string) {
+	CommandLine.Var(newUintValue(value, p), name, usage, typeExp)
 }
 
 // Uint defines a uint flag with specified name, default value, and usage string.
 // The return value is the address of a uint  variable that stores the value of the flag.
-func (f *FlagSet) Uint(name string, value uint, usage string, typeExp ...string) *uint {
+func (f *FlagSet) Uint(name string, value uint, usage string, typeExp string) *uint {
 	p := new(uint)
-	f.UintVar(p, name, value, usage, typeExp...)
+	f.UintVar(p, name, value, usage, typeExp)
 	return p
 }
 
 // Uint defines a uint flag with specified name, default value, and usage string.
 // The return value is the address of a uint  variable that stores the value of the flag.
-func Uint(name string, value uint, usage string, typeExp ...string) *uint {
-	return CommandLine.Uint(name, value, usage, typeExp...)
+func Uint(name string, value uint, usage string, typeExp string) *uint {
+	return CommandLine.Uint(name, value, usage, typeExp)
 }
 
 // Uint64Var defines a uint64 flag with specified name, default value, and usage string.
 // The argument p points to a uint64 variable in which to store the value of the flag.
-func (f *FlagSet) Uint64Var(p *uint64, name string, value uint64, usage string, typeExp ...string) {
-	f.Var(newUint64Value(value, p), name, usage, typeExp...)
+func (f *FlagSet) Uint64Var(p *uint64, name string, value uint64, usage string, typeExp string) {
+	f.Var(newUint64Value(value, p), name, usage, typeExp)
 }
 
 // Uint64Var defines a uint64 flag with specified name, default value, and usage string.
 // The argument p points to a uint64 variable in which to store the value of the flag.
-func Uint64Var(p *uint64, name string, value uint64, usage string, typeExp ...string) {
-	CommandLine.Var(newUint64Value(value, p), name, usage, typeExp...)
+func Uint64Var(p *uint64, name string, value uint64, usage string, typeExp string) {
+	CommandLine.Var(newUint64Value(value, p), name, usage, typeExp)
 }
 
 // Uint64 defines a uint64 flag with specified name, default value, and usage string.
 // The return value is the address of a uint64 variable that stores the value of the flag.
-func (f *FlagSet) Uint64(name string, value uint64, usage string, typeExp ...string) *uint64 {
+func (f *FlagSet) Uint64(name string, value uint64, usage string, typeExp string) *uint64 {
 	p := new(uint64)
-	f.Uint64Var(p, name, value, usage, typeExp...)
+	f.Uint64Var(p, name, value, usage, typeExp)
 	return p
 }
 
 // Uint64 defines a uint64 flag with specified name, default value, and usage string.
 // The return value is the address of a uint64 variable that stores the value of the flag.
-func Uint64(name string, value uint64, usage string, typeExp ...string) *uint64 {
-	return CommandLine.Uint64(name, value, usage, typeExp...)
+func Uint64(name string, value uint64, usage string, typeExp string) *uint64 {
+	return CommandLine.Uint64(name, value, usage, typeExp)
 }
 
 // StringVar defines a string flag with specified name, default value, and usage string.
 // The argument p points to a string variable in which to store the value of the flag.
-func (f *FlagSet) StringVar(p *string, name string, value string, usage string, typeExp ...string) {
-	f.Var(newStringValue(value, p), name, usage, typeExp...)
+func (f *FlagSet) StringVar(p *string, name string, value string, usage string, typeExp string) {
+	f.Var(newStringValue(value, p), name, usage, typeExp)
 }
 
 // StringVar defines a string flag with specified name, default value, and usage string.
 // The argument p points to a string variable in which to store the value of the flag.
-func StringVar(p *string, name string, value string, usage string, typeExp ...string) {
-	CommandLine.Var(newStringValue(value, p), name, usage, typeExp...)
+func StringVar(p *string, name string, value string, usage string, typeExp string) {
+	CommandLine.Var(newStringValue(value, p), name, usage, typeExp)
 }
 
 // String defines a string flag with specified name, default value, and usage string.
 // The return value is the address of a string variable that stores the value of the flag.
-func (f *FlagSet) String(name string, value string, usage string, typeExp ...string) *string {
+func (f *FlagSet) String(name string, value string, usage string, typeExp string) *string {
 	p := new(string)
-	f.StringVar(p, name, value, usage, typeExp...)
+	f.StringVar(p, name, value, usage, typeExp)
 	return p
 }
 
 // String defines a string flag with specified name, default value, and usage string.
 // The return value is the address of a string variable that stores the value of the flag.
-func String(name string, value string, usage string, typeExp ...string) *string {
-	return CommandLine.String(name, value, usage, typeExp...)
+func String(name string, value string, usage string, typeExp string) *string {
+	return CommandLine.String(name, value, usage, typeExp)
 }
 
 // Float64Var defines a float64 flag with specified name, default value, and usage string.
 // The argument p points to a float64 variable in which to store the value of the flag.
-func (f *FlagSet) Float64Var(p *float64, name string, value float64, usage string, typeExp ...string) {
-	f.Var(newFloat64Value(value, p), name, usage, typeExp...)
+func (f *FlagSet) Float64Var(p *float64, name string, value float64, usage string, typeExp string) {
+	f.Var(newFloat64Value(value, p), name, usage, typeExp)
 }
 
 // Float64Var defines a float64 flag with specified name, default value, and usage string.
 // The argument p points to a float64 variable in which to store the value of the flag.
-func Float64Var(p *float64, name string, value float64, usage string, typeExp ...string) {
-	CommandLine.Var(newFloat64Value(value, p), name, usage, typeExp...)
+func Float64Var(p *float64, name string, value float64, usage string, typeExp string) {
+	CommandLine.Var(newFloat64Value(value, p), name, usage, typeExp)
 }
 
 // Float64 defines a float64 flag with specified name, default value, and usage string.
 // The return value is the address of a float64 variable that stores the value of the flag.
-func (f *FlagSet) Float64(name string, value float64, usage string, typeExp ...string) *float64 {
+func (f *FlagSet) Float64(name string, value float64, usage string, typeExp string) *float64 {
 	p := new(float64)
-	f.Float64Var(p, name, value, usage, typeExp...)
+	f.Float64Var(p, name, value, usage, typeExp)
 	return p
 }
 
 // Float64 defines a float64 flag with specified name, default value, and usage string.
 // The return value is the address of a float64 variable that stores the value of the flag.
-func Float64(name string, value float64, usage string, typeExp ...string) *float64 {
-	return CommandLine.Float64(name, value, usage, typeExp...)
+func Float64(name string, value float64, usage string, typeExp string) *float64 {
+	return CommandLine.Float64(name, value, usage, typeExp)
 }
 
 // DurationVar defines a time.Duration flag with specified name, default value, and usage string.
 // The argument p points to a time.Duration variable in which to store the value of the flag.
-func (f *FlagSet) DurationVar(p *time.Duration, name string, value time.Duration, usage string, typeExp ...string) {
-	f.Var(newDurationValue(value, p), name, usage, typeExp...)
+func (f *FlagSet) DurationVar(p *time.Duration, name string, value time.Duration, usage string, typeExp string) {
+	f.Var(newDurationValue(value, p), name, usage, typeExp)
 }
 
 // DurationVar defines a time.Duration flag with specified name, default value, and usage string.
 // The argument p points to a time.Duration variable in which to store the value of the flag.
-func DurationVar(p *time.Duration, name string, value time.Duration, usage string, typeExp ...string) {
-	CommandLine.Var(newDurationValue(value, p), name, usage, typeExp...)
+func DurationVar(p *time.Duration, name string, value time.Duration, usage string, typeExp string) {
+	CommandLine.Var(newDurationValue(value, p), name, usage, typeExp)
 }
 
 // Duration defines a time.Duration flag with specified name, default value, and usage string.
 // The return value is the address of a time.Duration variable that stores the value of the flag.
-func (f *FlagSet) Duration(name string, value time.Duration, usage string, typeExp ...string) *time.Duration {
+func (f *FlagSet) Duration(name string, value time.Duration, usage string, typeExp string) *time.Duration {
 	p := new(time.Duration)
-	f.DurationVar(p, name, value, usage, typeExp...)
+	f.DurationVar(p, name, value, usage, typeExp)
 	return p
 }
 
 // Duration defines a time.Duration flag with specified name, default value, and usage string.
 // The return value is the address of a time.Duration variable that stores the value of the flag.
-func Duration(name string, value time.Duration, usage string, typeExp ...string) *time.Duration {
-	return CommandLine.Duration(name, value, usage, typeExp...)
+func Duration(name string, value time.Duration, usage string, typeExp string) *time.Duration {
+	return CommandLine.Duration(name, value, usage, typeExp)
+}
+
+// Func defines a flag with the specified name and usage string.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
+func (f *FlagSet) Func(name, usage string, fn func(string) error, typeExp string) {
+	f.Var(funcValue(fn), name, usage, typeExp)
+}
+
+// Func defines a flag with the specified name and usage string.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
+func Func(name, usage string, fn func(string) error, typeExp string) {
+	CommandLine.Func(name, usage, fn, typeExp)
 }
 
 // Var defines a flag with the specified name and usage string. The type and
@@ -787,31 +923,27 @@ func Duration(name string, value time.Duration, usage string, typeExp ...string)
 // caller could create a flag that turns a comma-separated string into a slice
 // of strings by giving the slice the methods of Value; in particular, Set would
 // decompose the comma-separated string into the slice.
-func (f *FlagSet) Var(value Value, name string, usage string, typeExp ...string) {
-	typeExpected := ""
-	if len(typeExp) > 0 {
-		typeExpected = typeExp[0]
-		for i := 1; i < len(typeExp); i++ {
-			f.Var(value, typeExp[i], usage, typeExp[0])
-		}
-	}
+func (f *FlagSet) Var(value Value, flagStr string, usage string, typeExp string) {
+	names := splitOnSpace(flagStr)
 	// Remember the default value as a string; it won't change.
 	flag := &Flag{
-		Name:         name,
+		Name:         names,
 		Usage:        usage,
 		Value:        value,
 		DefValue:     value.String(),
-		TypeExpected: typeExpected,
+		TypeExpected: typeExp,
 	}
-	_, alreadythere := f.formal[name]
-	if alreadythere {
-		fmt.Fprintf(f.Output(), "%s %v redefined: %s\n", f.name, f.FlagKnownAs, name)
-		panic(fmt.Sprintf("%v redefinition", f.FlagKnownAs)) // Happens only if flags are declared with identical names
+	for _, name := range names {
+		_, alreadythere := f.formal[name]
+		if alreadythere {
+			fmt.Fprintf(f.Output(), "%s %v redefined: %s\n", f.name, f.FlagKnownAs, name)
+			panic(fmt.Sprintf("%v redefinition", f.FlagKnownAs)) // Happens only if flags are declared with identical names
+		}
+		if f.formal == nil {
+			f.formal = make(map[string]*Flag)
+		}
+		f.formal[name] = flag
 	}
-	if f.formal == nil {
-		f.formal = make(map[string]*Flag)
-	}
-	f.formal[name] = flag
 }
 
 // Var defines a flag with the specified name and usage string. The type and
@@ -820,8 +952,8 @@ func (f *FlagSet) Var(value Value, name string, usage string, typeExp ...string)
 // caller could create a flag that turns a comma-separated string into a slice
 // of strings by giving the slice the methods of Value; in particular, Set would
 // decompose the comma-separated string into the slice.
-func Var(value Value, name string, usage string, typeExp ...string) {
-	CommandLine.Var(value, name, usage, typeExp...)
+func Var(value Value, name string, usage string, typeExp string) {
+	CommandLine.Var(value, name, usage, typeExp)
 }
 
 // failf prints to standard error a formatted error and usage message and
@@ -913,7 +1045,7 @@ func (f *FlagSet) parseOne() (flagName string, long, finished bool, err error) {
 }
 
 func flagWithMinus(name string) string {
-	if len(name) > 1 {
+	if rlen(name) > 1 {
 		return "--" + name
 	}
 	return "-" + name
@@ -931,12 +1063,13 @@ func (f *FlagSet) parseFlagArg(name string, long bool) (finished bool, err error
 		// TODO print --xxx when flag is more than one rune.
 		return false, f.failf("%v provided but not defined: %s", f.FlagKnownAs, flagWithMinus(name))
 	}
-	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() && !strings.HasPrefix(f.procFlag, "=") {
+	if fv, ok := flag.Value.(presentFlag); ok && fv.IsPresentFlag() {
 		// special case: doesn't need an arg, and an arg hasn't
 		// been provided explicitly.
-		if err := fv.Set("true"); err != nil {
-			return false, f.failf("invalid boolean %v %s: %v", f.FlagKnownAs, name, err)
-		}
+		fv.Set("")
+		//if err :=
+		//	return false, f.failf("invalid present %v %s: %v", f.FlagKnownAs, name, err)
+		//}
 	} else {
 		// It must have a value, which might be the next argument.
 		var hasValue bool
@@ -946,7 +1079,7 @@ func (f *FlagSet) parseFlagArg(name string, long bool) (finished bool, err error
 			value = f.procFlag
 			if long {
 				if value[0] != '=' {
-					panic(fmt.Sprintf("no leading '=' in long %v", f.FlagKnownAs))
+					panic(fmt.Sprintf("no leading '=' in long flag %v", f.FlagKnownAs))
 				}
 				value = value[1:]
 			}

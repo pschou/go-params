@@ -14,7 +14,7 @@ import (
 )
 
 // Example 1: A single string gnuflag called "species" with default value "gopher".
-var species = gnuflag.String("species", "gopher", "the species we are studying")
+var species = gnuflag.String("species", "gopher", "the species we are studying", "TEXT")
 
 // Example 2: Two gnuflags sharing a variable, so we can have a shorthand.
 // The order of initialization is undefined, so make sure both use the
@@ -26,8 +26,8 @@ func init() {
 		defaultGopher = "pocket"
 		usage         = "the variety of gopher"
 	)
-	gnuflag.StringVar(&gopherType, "gopher_type", defaultGopher, usage)
-	gnuflag.StringVar(&gopherType, "g", defaultGopher, usage+" (shorthand)")
+	gnuflag.StringVar(&gopherType, "gopher_type", defaultGopher, usage, "TYPE")
+	gnuflag.StringVar(&gopherType, "g", defaultGopher, usage+" (shorthand)", "")
 }
 
 // Example 3: A user-defined gnuflag type, a slice of durations.
@@ -70,7 +70,7 @@ var intervalFlag interval
 func init() {
 	// Tie the command-line gnuflag to the intervalFlag variable and
 	// set a usage message.
-	gnuflag.Var(&intervalFlag, "deltaT", "comma-separated list of intervals to use between events")
+	gnuflag.Var(&intervalFlag, "deltaT", "comma-separated list of intervals to use between events", "VALS")
 }
 
 func Example() {

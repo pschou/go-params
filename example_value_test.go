@@ -34,9 +34,9 @@ var u = &url.URL{}
 
 func ExampleValue() {
 	fs := gnuflag.NewFlagSet("ExampleValue", gnuflag.ExitOnError)
-	fs.Var(&URLValue{u}, "url", "URL to parse")
+	fs.Var(&URLValue{u}, "url", "The URL to parse", "ADDRESS")
 
-	fs.Parse([]string{"-url", "https://golang.org/pkg/flag/"})
+	fs.Parse([]string{"--url", "https://golang.org/pkg/flag/"})
 	fmt.Printf(`{scheme: %q, host: %q, path: %q}`, u.Scheme, u.Host, u.Path)
 
 	// Output:
