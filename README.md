@@ -24,26 +24,50 @@ As there are many example of a programs that handle parameters differently, let 
 package to build a toolbox from, `curl`.  This has been done; in this `param` package, GoLang can duplicate
 the output of `curl`.
 
-Example parameters which can be built using this module:
+Examples of parameters flags which can be built using this module:
+## Single value
 ```
-$ curl --help
-Usage: curl [options...] <url>
-Options: (H) means HTTP/HTTPS only, (F) means FTP only
-     --anyauth       Pick "any" authentication method (H)
- -a, --append        Append to target file when uploading (F/SFTP)
-     --basic         Use HTTP Basic Authentication (H)
-     --cacert FILE   CA certificate to verify peer against (SSL)
-     --capath DIR    CA directory to verify peer against (SSL)
- -E, --cert CERT[:PASSWD] Client certificate file and password (SSL)
-     --cert-type TYPE Certificate file type (DER/PEM/ENG) (SSL)
-     --ciphers LIST  SSL ciphers to use (SSL)
-     --compressed    Request compressed response (using deflate or gzip)
- -K, --config FILE   Specify which config file to read
-     --connect-timeout SECONDS  Maximum time allowed for connection
- -C, --continue-at OFFSET  Resumed transfer offset
- -b, --cookie STRING/FILE  String or file to read cookies from (H)
- -c, --cookie-jar FILE  Write cookies to this file after operation (H)
-     --create-dirs   Create necessary local directory hierarchy
+-A               for bootstrapping, allow 'any' type  (Default: false)
+--Alongflagname  disable bounds checking  (Default: false)
+-C               a boolean defaulting to true  (Default: true)
+-D               set relative path for local imports  (Default: "")
+-E               issue 23543  (Default: "0")
+-F STR           issue 23543  (Default: "0")
+-I               a non-zero number  (Default: 2.7)
+-K               a float that defaults to zero  (Default: 0)
+-M               a multiline
+                 help
+                 string  (Default: "")
+-N               a non-zero int  (Default: 27)
+-O               a flag
+                 multiline help string  (Default: true)
+-Z               an int that defaults to zero  (Default: 0)
+--maxT           set timeout for dial  (Default: 0s)
+-世              a present flag
+--世界           unicode string  (Default: "hello")
+```
+
+## Multiple value with indentation set
+```
+-A          for bootstrapping, allow 'any' type  (Default: false)
+    --Alongflagname  disable bounds checking  (Default: false)
+-C          a boolean defaulting to true  (Default: true)
+-D          set relative path for local imports  (Default: "")
+-E          issue 23543  (Default: "0")
+-F STR      issue 23543  (Default: "0")
+-G, --grind STR  issue 23543  (Default: "0")
+-I          a non-zero number  (Default: 2.7)
+-K          a float that defaults to zero  (Default: 0)
+-M          a multiline
+            help
+            string  (Default: "")
+-N          a non-zero int  (Default: 27)
+-O          a flag
+            multiline help string  (Default: true)
+-Z          an int that defaults to zero  (Default: 0)
+    --maxT  set timeout for dial  (Default: 0s)
+-世         a present flag
+    --世界  unicode string  (Default: "hello")
 ```
 
 Full documentation can be found here: https://godoc.org/github.com/pschou/go-param.
