@@ -673,28 +673,28 @@ func (f *FlagSet) Args() []string { return f.args }
 // Args returns the non-flag command-line arguments.
 func Args() []string { return CommandLine.args }
 
-// IsSetVar defines a bool flag with specified name and usage string.
-// The argument p points to a bool variable in which to store the value of the flag.
+// PresVar defines a present flag with specified name and usage string.
+// The return value is the address of a bool variable that stores true if seen.
 func (f *FlagSet) PresVar(p *bool, name string, usage string) {
 	f.Var(newPresentValue(p), name, usage, "", 0)
 }
 
-// IsSetVar defines a bool flag with specified name and usage string.
-// The argument p points to a bool variable in which to store the value of the flag.
+// PresVar defines a present flag with specified name and usage string.
+// The return value is the address of a bool variable that stores true if seen.
 func PresVar(p *bool, name string, usage string) {
 	CommandLine.Var(newPresentValue(p), name, usage, "", 0)
 }
 
-// IsSetVar defines a bool flag with specified name and usage string.
-// The return value is the address of a bool variable that stores the value of the flag.
+// PresVar defines a present flag with specified name and usage string.
+// The return value is the address of a bool variable that stores true if seen.
 func (f *FlagSet) Pres(name string, usage string) *bool {
 	p := new(bool)
 	f.PresVar(p, name, usage)
 	return p
 }
 
-// IsSet defines a bool flag with specified name and usage string.
-// The return value is the address of a bool variable that stores the value of the flag.
+// Pres defines a present flag with specified name and usage string.
+// The return value is the address of a bool variable that stores true if seen.
 func Pres(name string, usage string) *bool {
 	return CommandLine.Pres(name, usage)
 }
