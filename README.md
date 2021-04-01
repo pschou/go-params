@@ -16,6 +16,7 @@ This re-write includes some notable differences:
 - exemplifies the needed input type `--time DURATION`
 - custom definable functions to handle parsing of value
 - ability to allow more than one input per parameter
+- collect a dynamic number of strings per flag into a slice, like args after `--install`
 - allow interspersed parameters, if set `-a data -b` is the same as `-a -b data`
 
 # Background
