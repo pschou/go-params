@@ -2,27 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gnuflag_test
+package params_test
 
 import (
 	"errors"
 	"fmt"
-	"gnuflag"
+	"github.com/pschou/go-params"
 	"net"
 	"os"
 )
 
 func ExampleFunc() {
-	fs := gnuflag.NewFlagSet("ExampleFunc", gnuflag.ContinueOnError)
+	fs := params.NewFlagSet("ExampleFunc", params.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 	var ip net.IP
-	fs.Func("ip", "`IP address` to parse", func(s string) error {
-		ip = net.ParseIP(s)
+	fs.Func("ip", "`IP address` to parse", "ADDR", 1, func(s []string) error {
+		ip = net.ParseIP(s[0])
 		if ip == nil {
 			return errors.New("could not parse IP")
 		}
 		return nil
-	}, "ADDR")
+	})
 	fs.Parse([]string{"--ip", "127.0.0.1"})
 	fmt.Printf("{ip: %v, loopback: %t}\n\n", ip, ip.IsLoopback())
 
@@ -33,7 +33,7 @@ func ExampleFunc() {
 	// Output:
 	// {ip: 127.0.0.1, loopback: true}
 	//
-	// invalid value "256.0.0.1" for flag --ip: could not parse IP
+	// invalid value "256.0.0.1" for parameter --ip: could not parse IP
 	// Usage of ExampleFunc:
 	// --ip ADDR  `IP address` to parse  (Default: )
 	// {ip: <nil>, loopback: false}

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gnuflag_test
+package params_test
 
 import (
 	"fmt"
-	"gnuflag"
+	"github.com/pschou/go-params"
 	"net/url"
 )
 
@@ -21,8 +21,8 @@ func (v URLValue) String() string {
 	return ""
 }
 
-func (v URLValue) Set(s string) error {
-	if u, err := url.Parse(s); err != nil {
+func (v URLValue) Set(s []string) error {
+	if u, err := url.Parse(s[0]); err != nil {
 		return err
 	} else {
 		*v.URL = *u
@@ -33,8 +33,8 @@ func (v URLValue) Set(s string) error {
 var u = &url.URL{}
 
 func ExampleValue() {
-	fs := gnuflag.NewFlagSet("ExampleValue", gnuflag.ExitOnError)
-	fs.Var(&URLValue{u}, "url", "The URL to parse", "ADDRESS")
+	fs := params.NewFlagSet("ExampleValue", params.ExitOnError)
+	fs.Var(&URLValue{u}, "url", "The URL to parse", "ADDRESS", 1)
 
 	fs.Parse([]string{"--url", "https://golang.org/pkg/flag/"})
 	fmt.Printf(`{scheme: %q, host: %q, path: %q}`, u.Scheme, u.Host, u.Path)

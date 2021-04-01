@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gnuflag_test
+package params_test
 
 import (
 	"bytes"
 	"fmt"
-	//"github.com/pschou/gnuflag"
-	//. "github.com/pschou/gnuflag"
-	. "gnuflag"
+	//"github.com/pschou/go-params"
+	. "go-params"
 	//"internal/testenv"
 	"io"
 	"os"
@@ -21,6 +20,12 @@ import (
 	"testing"
 	"time"
 )
+
+type Discard struct{}
+
+func (Discard) Write(p []byte) (int, error) {
+	return len(p), nil
+}
 
 func boolString(s string) string {
 	if s == "0" {
@@ -39,7 +44,7 @@ func TestEverything(t *testing.T) {
 	String("test_string", "0", "string value", "")
 	Float64("test_float64", 0, "float64 value", "")
 	Duration("test_duration", 0, "time.Duration value", "")
-	Func("test_func", "func value", func(string) error { return nil }, "")
+	Func("test_func", "func value", "", 1, func([]string) error { return nil })
 
 	m := make(map[string]*Flag)
 	desired := "0"
@@ -78,15 +83,15 @@ func TestEverything(t *testing.T) {
 		}
 	}
 	// Now set all flags
-	Set("test_bool", "true")
-	Set("test_int", "1")
-	Set("test_int64", "1")
-	Set("test_uint", "1")
-	Set("test_uint64", "1")
-	Set("test_string", "1")
-	Set("test_float64", "1")
-	Set("test_duration", "1s")
-	Set("test_func", "1")
+	Set("test_bool", []string{"true"})
+	Set("test_int", []string{"1"})
+	Set("test_int64", []string{"1"})
+	Set("test_uint", []string{"1"})
+	Set("test_uint64", []string{"1"})
+	Set("test_string", []string{"1"})
+	Set("test_float64", []string{"1"})
+	Set("test_duration", []string{"1s"})
+	Set("test_func", []string{"1"})
 	desired = "1"
 	Visit(visitor)
 	if len(m) != 9 {
@@ -150,6 +155,7 @@ func TestGet(t *testing.T) {
 func TestUsage(t *testing.T) {
 	called := false
 	ResetForTesting(func() { called = true })
+	CommandLine.SetOutput(Discard{})
 	if CommandLine.Parse([]string{"-x"}) == nil {
 		t.Error("parse did not fail for unknown flag")
 	}
@@ -173,8 +179,8 @@ func testParse(f *FlagSet, t *testing.T) {
 	durationFlag := f.Duration("duration", 5*time.Second, "time.Duration value", "")
 	extra := "one-extra-argument"
 	args := []string{
-		"--bool",
-		"--bool2",
+		"--bool", "true",
+		"--bool2", "true",
 		"--int", "22",
 		"--int64", "0x23",
 		"--uint", "24",
@@ -240,8 +246,8 @@ func (f *flagVar) String() string {
 	return fmt.Sprint([]string(*f))
 }
 
-func (f *flagVar) Set(value string) error {
-	*f = append(*f, value)
+func (f *flagVar) Set(value []string) error {
+	*f = append(*f, value[0])
 	return nil
 }
 
@@ -249,14 +255,14 @@ func TestUserDefined(t *testing.T) {
 	var flags FlagSet
 	flags.Init("test", ContinueOnError)
 	var v flagVar
-	flags.Var(&v, "v", "usage", "")
+	flags.Var(&v, "v", "usage", "", 1)
 	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
 		t.Error(err)
 	}
 	if len(v) != 3 {
 		t.Fatal("expected 3 args; got ", len(v))
 	}
-	expect := "[1 2 =3]"
+	expect := "[1 2 3]"
 	if v.String() != expect {
 		t.Errorf("expected value %q got %q", expect, v.String())
 	}
@@ -266,17 +272,17 @@ func TestUserDefinedFunc(t *testing.T) {
 	var flags FlagSet
 	flags.Init("test", ContinueOnError)
 	var ss []string
-	//flags.Func("v", "usage", func(s string) error {
-	//	ss = append(ss, s)
-	//	return nil
-	//})
+	flags.Func("v", "usage", "", 1, func(s []string) error {
+		ss = append(ss, s[0])
+		return nil
+	})
 	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
 		t.Error(err)
 	}
 	if len(ss) != 3 {
 		t.Fatal("expected 3 args; got ", len(ss))
 	}
-	expect := "[1 2 =3]"
+	expect := "[1 2 3]"
 	if got := fmt.Sprint(ss); got != expect {
 		t.Errorf("expected value %q got %q", expect, got)
 	}
@@ -289,14 +295,15 @@ func TestUserDefinedFunc(t *testing.T) {
 	}
 	// test Func error
 	flags = *NewFlagSet("test", ContinueOnError)
-	//flags.Func("v", "usage", func(s string) error {
-	//	return fmt.Errorf("test error")
-	//})
+	flags.Func("v", "usage", "", 1, func(s []string) error {
+		return fmt.Errorf("test error")
+	})
 	// flag not set, so no error
 	if err := flags.Parse(nil); err != nil {
 		t.Error(err)
 	}
 	// flag set, expect error
+	flags.SetOutput(Discard{})
 	if err := flags.Parse([]string{"-v", "1"}); err == nil {
 		t.Error("expected error; got none")
 	} else if errMsg := err.Error(); !strings.Contains(errMsg, "test error") {
@@ -316,23 +323,31 @@ func TestUserDefinedForCommandLine(t *testing.T) {
 
 // Declare a user-defined boolean flag type.
 type boolFlagVar struct {
-	count int
+	countTrue  int
+	countFalse int
 }
 
 func (b *boolFlagVar) String() string {
-	return fmt.Sprintf("%d", b.count)
+	return fmt.Sprintf("%d", b.countTrue)
 }
 
-func (b *boolFlagVar) Set(value string) error {
-	//fmt.Println("val=", value)
-	if value == "true" {
-		b.count++
+func (b *boolFlagVar) Set(value []string) error {
+	//fmt.Println("val=", value) // DEBUG
+	v, err := strconv.ParseBool(value[0])
+	if err != nil {
+		return nil
+	}
+	if v == true {
+		b.countTrue++
+	}
+	if v == false {
+		b.countFalse++
 	}
 	return nil
 }
 
 func (b *boolFlagVar) IsBoolFlag() bool {
-	return b.count < 4
+	return true //b.count < 4
 }
 
 func TestUserDefinedBool(t *testing.T) {
@@ -340,15 +355,18 @@ func TestUserDefinedBool(t *testing.T) {
 	flags.Init("test", ContinueOnError)
 	var b boolFlagVar
 	var err error
-	flags.Var(&b, "b", "usage", "")
-	if err = flags.Parse([]string{"-b", "-b", "-b", "-b=true", "-b=false", "-b", "barg", "-b"}); err != nil {
-		if b.count < 4 {
+	flags.Var(&b, "b", "usage", "", 1)
+	if err = flags.Parse([]string{"-b", "true", "-btrue", "-b=true", "-b=false", "-b", "barg", "-bt", "-b0"}); err != nil {
+		if b.countTrue < 4 {
 			t.Error(err)
 		}
 	}
 
-	if b.count != 4 {
-		t.Errorf("want: %d; got: %d", 4, b.count)
+	if b.countTrue != 4 {
+		t.Errorf("want: %d; got: %d", 4, b.countTrue)
+	}
+	if b.countFalse != 2 {
+		t.Errorf("want: %d; got: %d", 2, b.countFalse)
 	}
 
 	//if err == nil {
@@ -384,7 +402,7 @@ func TestChangingArgs(t *testing.T) {
 	ResetForTesting(func() { t.Fatal("bad parse") })
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
-	os.Args = []string{"cmd", "--before", "subcmd", "--after", "args"}
+	os.Args = []string{"cmd", "--before", "true", "subcmd", "--after", "t", "args"}
 	before := Bool("before", false, "", "")
 	if err := CommandLine.Parse(os.Args[1:]); err != nil {
 		t.Fatal(err)
@@ -406,21 +424,21 @@ func TestHelp(t *testing.T) {
 	fs := NewFlagSet("help test", ContinueOnError)
 	fs.Usage = func() { helpCalled = true }
 	var flag bool
-	fs.BoolVar(&flag, "flag", false, "regular flag", "")
+	fs.PresVar(&flag, "flag", "regular flag")
 	// Regular flag invocation should work
 	err := fs.Parse([]string{"--flag"})
 	if err != nil {
 		t.Fatal("expected no error; got ", err)
 	}
 	if !flag {
-		t.Error("flag was not set by -flag")
+		t.Error("flag was not set by --flag")
 	}
 	if helpCalled {
 		t.Error("help called for regular flag")
 		helpCalled = false // reset for next test
 	}
 	// Help flag should work as expected.
-	err = fs.Parse([]string{"-help"})
+	err = fs.Parse([]string{"--help"})
 	if err == nil {
 		t.Fatal("error expected")
 	}
@@ -432,19 +450,19 @@ func TestHelp(t *testing.T) {
 	}
 	// If we define a help flag, that should override.
 	var help bool
-	fs.BoolVar(&help, "help", false, "help flag", "")
+	fs.PresVar(&help, "help", "help flag")
 	helpCalled = false
 	err = fs.Parse([]string{"--help"})
 	if err != nil {
-		t.Fatal("expected no error for defined -help; got ", err)
+		t.Fatal("expected no error for defined --help; got ", err)
 	}
 	if helpCalled {
 		t.Fatal("help was called; should not have been for defined help flag")
 	}
 }
 
-const defaultOutput = `-A               for bootstrapping, allow 'any' type
---Alongflagname  disable bounds checking
+const defaultOutput = `-A               for bootstrapping, allow 'any' type  (Default: false)
+--Alongflagname  disable bounds checking  (Default: false)
 -C               a boolean defaulting to true  (Default: true)
 -D               set relative path for local imports  (Default: "")
 -E               issue 23543  (Default: "0")
@@ -459,10 +477,12 @@ const defaultOutput = `-A               for bootstrapping, allow 'any' type
                  multiline help string  (Default: true)
 -Z               an int that defaults to zero  (Default: 0)
 --maxT           set timeout for dial  (Default: 0s)
+-世              a present flag
+--世界           unicode string  (Default: "hello")
 `
 
-const defaultOutputMixed = `-A                   for bootstrapping, allow 'any' type
-    --Alongflagname  disable bounds checking
+const defaultOutputMixed = `-A                   for bootstrapping, allow 'any' type  (Default: false)
+    --Alongflagname  disable bounds checking  (Default: false)
 -C                   a boolean defaulting to true  (Default: true)
 -D                   set relative path for local imports  (Default: "")
 -E                   issue 23543  (Default: "0")
@@ -478,9 +498,11 @@ const defaultOutputMixed = `-A                   for bootstrapping, allow 'any' 
 -Z                   an int that defaults to zero  (Default: 0)
 -G, --grind STR      issue 23543  (Default: "0")
     --maxT           set timeout for dial  (Default: 0s)
+-世                  a present flag
+    --世界           unicode string  (Default: "hello")
 `
-const defaultOutputMixedIndent = `-A          for bootstrapping, allow 'any' type
-    --Alongflagname  disable bounds checking
+const defaultOutputMixedIndent = `-A          for bootstrapping, allow 'any' type  (Default: false)
+    --Alongflagname  disable bounds checking  (Default: false)
 -C          a boolean defaulting to true  (Default: true)
 -D          set relative path for local imports  (Default: "")
 -E          issue 23543  (Default: "0")
@@ -496,6 +518,8 @@ const defaultOutputMixedIndent = `-A          for bootstrapping, allow 'any' typ
             multiline help string  (Default: true)
 -Z          an int that defaults to zero  (Default: 0)
     --maxT  set timeout for dial  (Default: 0s)
+-世         a present flag
+    --世界  unicode string  (Default: "hello")
 `
 
 func TestPrintDefaults(t *testing.T) {
@@ -519,7 +543,7 @@ func TestPrintDefaults(t *testing.T) {
 	fs.Duration("maxT", 0, "set timeout for dial", "")
 	fs.PrintDefaults()
 	got := buf.String()
-	fmt.Println(got)
+	//fmt.Println(got) // DEBUG
 	if got != defaultOutput {
 		t.Errorf("got %q want %q\n", got, defaultOutput)
 	}
@@ -528,7 +552,7 @@ func TestPrintDefaults(t *testing.T) {
 	fs.String("grind G", "0", "issue 23543", "STR")
 	fs.PrintDefaults()
 	got = buf.String()
-	fmt.Println(got)
+	//fmt.Println(got) // DEBUG
 	if got != defaultOutputMixed {
 		t.Errorf("got %q want %q\n", got, defaultOutputMixed)
 	}
@@ -537,7 +561,7 @@ func TestPrintDefaults(t *testing.T) {
 	fs.SetUsageIndent(12)
 	fs.PrintDefaults()
 	got = buf.String()
-	fmt.Println(got)
+	//fmt.Println(got) // DEBUG
 	if got != defaultOutputMixedIndent {
 		t.Errorf("got %q want %q\n", got, defaultOutputMixedIndent)
 	}
@@ -551,10 +575,10 @@ func TestIntFlagOverflow(t *testing.T) {
 	ResetForTesting(nil)
 	Int("i", 0, "", "")
 	Uint("u", 0, "", "")
-	if err := Set("i", "2147483648"); err == nil {
+	if err := Set("i", []string{"2147483648"}); err == nil {
 		t.Error("unexpected success setting Int")
 	}
-	if err := Set("u", "4294967296"); err == nil {
+	if err := Set("u", []string{"4294967296"}); err == nil {
 		t.Error("unexpected success setting Uint")
 	}
 }
@@ -567,7 +591,7 @@ func TestUsageOutput(t *testing.T) {
 	defer func(old []string) { os.Args = old }(os.Args)
 	os.Args = []string{"app", "-i1", "-unknown"}
 	Parse()
-	const want = "flag provided but not defined: -i\nUsage of app:\n"
+	const want = "parameter provided but not defined: -i\nUsage of app:\n"
 	if got := buf.String(); got != want {
 		t.Errorf("output = %q; want %q", got, want)
 	}
@@ -609,7 +633,7 @@ func TestGetters(t *testing.T) {
 func TestParseError(t *testing.T) {
 	for _, typ := range []string{"bool", "int", "int64", "uint", "uint64", "float64", "duration"} {
 		fs := NewFlagSet("parse error test", ContinueOnError)
-		//fs.SetOutput(io.Discard)
+		fs.SetOutput(Discard{})
 		_ = fs.Bool("bool", false, "", "")
 		_ = fs.Int("int", 0, "", "")
 		_ = fs.Int64("int64", 0, "", "")
@@ -624,7 +648,7 @@ func TestParseError(t *testing.T) {
 			t.Errorf("Parse(%q)=%v; expected parse error", args, err)
 			continue
 		}
-		if !strings.Contains(err.Error(), "invalid") || !strings.Contains(err.Error(), "parse error") {
+		if !strings.Contains(err.Error(), "invalid value") || !strings.Contains(err.Error(), "for param") {
 			t.Errorf("Parse(%q)=%v; expected parse error", args, err)
 		}
 	}
@@ -640,7 +664,7 @@ func TestRangeError(t *testing.T) {
 	}
 	for _, arg := range bad {
 		fs := NewFlagSet("parse error test", ContinueOnError)
-		//fs.SetOutput(io.Discard)
+		fs.SetOutput(Discard{})
 		_ = fs.Int("int", 0, "", "")
 		_ = fs.Int64("int64", 0, "", "")
 		_ = fs.Uint("uint", 0, "", "")
