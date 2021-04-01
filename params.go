@@ -199,7 +199,7 @@ func newStringSliceValue(val []string, p *([]string)) *stringSliceValue {
 }
 
 func (s *stringSliceValue) Set(val []string) error {
-	*s = stringSliceValue(val)
+	*s = append(*s, stringSliceValue(val)...)
 	return nil
 }
 
@@ -614,18 +614,20 @@ func (f *FlagSet) PrintDefaults() {
 		//}
 		//}
 		usage = strings.ReplaceAll(usage, "\n", pad)
-		if _, ok := fs.Value.(*presentValue); ok && fs.Value.(*presentValue).Get() == false {
+		if _, ok := fs.Value.(*presentValue); ok {
 			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
+		} else if _, ok := fs.Value.(*stringSliceValue); ok {
+			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
+		} else if _, ok := fs.Value.(*stringValue); ok {
+			// put quotes on string values
+			format := "%s%s  (%s%q)\n"
+			fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
+		} else if _, ok := fs.Value.(funcValue); ok {
+			// put quotes on empty func values
+			format := "%s%s  (%s%q)\n"
+			fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
 		} else {
 			format := "%s%s  (%s%s)\n"
-			if _, ok := fs.Value.(*stringValue); ok {
-				// put quotes on string values
-				format = "%s%s  (%s%q)\n"
-			}
-			if _, ok := fs.Value.(funcValue); ok {
-				// put quotes on empty func values
-				format = "%s%s  (%s%q)\n"
-			}
 			fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
 		}
 	}
