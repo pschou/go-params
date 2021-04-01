@@ -5,7 +5,8 @@ The package is a fork of the Go standard library flag and gnuflag.  As this
 package is a rewrite to enable additional functionality and usability, it is
 not backwards compatible.
 
-Some notable differences are that this package supports:
+Goals in mind for this re-write and some notable differences this package provides:
+
 - `--longflag` and `-l` single-character flag syntax
 - flag stacking `-abc` is the same as `-a -b -c` for present flags
 - full unicode support and printing with alignment
