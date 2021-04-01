@@ -16,8 +16,8 @@ func ExampleFunc() {
 	fs := params.NewFlagSet("ExampleFunc", params.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 	var ip net.IP
-	// Allow both -h and --ip
-	fs.Func("h ip", "`IP address` to parse", "ADDR", 1, func(s []string) error {
+	// Allow both flags -h and --ip by using "h ip" instead of "ip"
+	fs.Func("ip", "`IP address` to parse", "ADDR", 1, func(s []string) error {
 		ip = net.ParseIP(s[0])
 		if ip == nil {
 			return errors.New("could not parse IP")
@@ -36,6 +36,6 @@ func ExampleFunc() {
 	//
 	// invalid value "256.0.0.1" for parameter --ip: could not parse IP
 	// Usage of ExampleFunc:
-	// -h, --ip ADDR  `IP address` to parse  (Default: )
+	// --ip ADDR  `IP address` to parse  (Default: "")
 	// {ip: <nil>, loopback: false}
 }

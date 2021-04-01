@@ -190,6 +190,23 @@ func (s *stringValue) Get() interface{} { return string(*s) }
 
 func (s *stringValue) String() string { return fmt.Sprintf("%s", *s) }
 
+// -- StringSliceValue Value
+type stringSliceValue []string
+
+func newStringSliceValue(val []string, p *([]string)) *stringSliceValue {
+	*p = val
+	return (*stringSliceValue)(p)
+}
+
+func (s *stringSliceValue) Set(val []string) error {
+	*s = stringSliceValue(val)
+	return nil
+}
+
+func (s *stringSliceValue) Get() interface{} { return ([]string)(*s) }
+
+func (s *stringSliceValue) String() string { return fmt.Sprintf("%q", *s) }
+
 // -- float64 Value
 type float64Value float64
 
@@ -605,7 +622,7 @@ func (f *FlagSet) PrintDefaults() {
 				// put quotes on string values
 				format = "%s%s  (%s%q)\n"
 			}
-			if _, ok := fs.Value.(*funcValue); ok && fs.Value.(*funcValue).String() == "" {
+			if _, ok := fs.Value.(funcValue); ok {
 				// put quotes on empty func values
 				format = "%s%s  (%s%q)\n"
 			}
@@ -855,6 +872,32 @@ func String(name string, value string, usage string, typeExp string) *string {
 	return CommandLine.String(name, value, usage, typeExp)
 }
 
+// StringSliceVar defines a string flag with specified name, default value, and usage string.
+// The argument p points to a string variable in which to store the value of the flag.
+func (f *FlagSet) StringSliceVar(p *([]string), name string, usage string, typeExp string) {
+	f.Var(newStringSliceValue([]string{}, p), name, usage, typeExp, -1)
+}
+
+// StringSliceVar defines a string flag with specified name, default value, and usage string.
+// The argument p points to a string variable in which to store the value of the flag.
+func StringSliceVar(p *([]string), name string, usage string, typeExp string) {
+	CommandLine.Var(newStringSliceValue([]string{}, p), name, usage, typeExp, -1)
+}
+
+// StringSlice defines a string flag with specified name, default value, and usage string.
+// The return value is the address of a string variable that stores the value of the flag.
+func (f *FlagSet) StringSlice(name string, usage string, typeExp string) *[]string {
+	p := new([]string)
+	f.StringSliceVar(p, name, usage, typeExp)
+	return p
+}
+
+// StringSlice defines a string flag with specified name, default value, and usage string.
+// The return value is the address of a string variable that stores the value of the flag.
+func StringSlice(name string, usage string, typeExp string) *[]string {
+	return CommandLine.StringSlice(name, usage, typeExp)
+}
+
 // Float64Var defines a float64 flag with specified name, default value, and usage string.
 // The argument p points to a float64 variable in which to store the value of the flag.
 func (f *FlagSet) Float64Var(p *float64, name string, value float64, usage string, typeExp string) {
@@ -1091,9 +1134,6 @@ func (f *FlagSet) parseFlagArg(name string, long bool) (finished bool, err error
 			return false, f.failf("%v unwanted argument %q found after: %s",
 				f.FlagKnownAs, found, flagWithMinus(name))
 		}
-		//if err :=
-		//	return false, f.failf("invalid present %v %s: %v", f.FlagKnownAs, name, err)
-		//}
 	case 1:
 		// It must have a value, which might be the next argument.
 		var hasValue bool
@@ -1101,14 +1141,6 @@ func (f *FlagSet) parseFlagArg(name string, long bool) (finished bool, err error
 		if f.procFlag != "" {
 			// value directly follows flag
 			value = f.procFlag
-			/*
-				if long {
-					if value[0] != '=' {
-						panic(fmt.Sprintf("no leading '=' in long flag %v", f.FlagKnownAs))
-					}
-					value = value[1:]
-				}
-			*/
 			hasValue = true
 			f.procFlag = ""
 		}
@@ -1125,6 +1157,26 @@ func (f *FlagSet) parseFlagArg(name string, long bool) (finished bool, err error
 			return false, f.failf("invalid value %q for %v %s: %v",
 				value, f.FlagKnownAs, flagWithMinus(name), err)
 		}
+	case -1:
+		// Dynamic set of strings, returned as a slice
+		if f.procFlag != "" && long {
+			found := f.procFlag
+			f.procFlag = ""
+			return false, f.failf("%v unwanted argument %q found after: %s",
+				f.FlagKnownAs, found, flagWithMinus(name))
+		}
+
+		toSet := []string{}
+		for len(f.procArgs) > 0 {
+			if len(f.procArgs[0]) > 0 && f.procArgs[0][0] != '-' {
+				toSet = append(toSet, f.procArgs[0])
+				f.procArgs = f.procArgs[1:]
+			} else {
+				break
+			}
+		}
+		flag.Value.Set(toSet)
+
 	default:
 		if f.procFlag != "" {
 			return false, f.failf("%v needs more than one parameter: %s",
