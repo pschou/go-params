@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"github.com/pschou/go-runewidth"
 	"io"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -292,7 +293,16 @@ type FlagSet struct {
 	exitOnError      bool     // does the program exit if there's an error?
 	errorHandling    ErrorHandling
 	output           io.Writer // nil means stderr; use out() accessor
-	usageIndent      int
+
+	// SetUsageIndent tells the DefaultPrinter how many spaces to add to before
+	// printing the usage for each flag.  By default this is 0 and determined by
+	// the maximum comma seperated name length.
+	Indent int
+
+	UsageSpace int // number of spaces before usage
+	TypeSpace  int // number of spaces before input type string
+
+	ShowDefaultVal bool // Display the (Default: "") example
 
 	// FlagKnownAs allows different projects to customise what their flags are
 	// known as, e.g. 'flag', 'option', 'item'. All error/log messages
@@ -311,6 +321,7 @@ type Flag struct {
 	DefValue     string   // default value (as text); for usage message
 	TypeExpected string   // helpful hint on what is expected
 	ArgsNeeded   int      // arg count wanted
+	Grouping     string   // organize flags into groups
 }
 
 // splitOn, reads out a string and returns a slice
@@ -402,20 +413,6 @@ func (f *FlagSet) SetAllowIntersperse(allowIntersperse bool) {
 //   prog -flag1 -flag2 input1 input2
 func SetAllowIntersperse(allowIntersperse bool) {
 	CommandLine.allowIntersperse = allowIntersperse
-}
-
-// SetUsageIndent tells the DefaultPrinter how many spaces to add to before
-// printing the usage for each flag.  By default this is 0 and determined by
-// the maximum comma seperated name length.
-func (f *FlagSet) SetUsageIndent(usageIndent int) {
-	f.usageIndent = usageIndent
-}
-
-// SetUsageIndent tells the DefaultPrinter how many spaces to add to before
-// printing the usage for each flag.  By default this is 0 and determined by
-// the maximum comma seperated name length.
-func SetUsageIndent(usageIndent int) {
-	CommandLine.usageIndent = usageIndent
 }
 
 // VisitAll visits the flags in lexicographical order, calling fn for each.
@@ -542,23 +539,67 @@ func rlen(s string) int {
 // default value from the shortest will be printed (or the least alphabetically
 // if there are several equally short flag names).
 func (f *FlagSet) PrintDefaults() {
-	var maxLen int
-	var haveMultiple bool
+	//var maxLen int
+	var haveMultiple, haveSingleChar bool
 	// group together all flags for a given value
 	var flags [](*Flag)
+	var nameAndTypeLen []int
+	var avgLen float64
 	var uniqueFlag = make(map[string]interface{})
-	f.VisitAll(func(f *Flag) {
-		if _, ok := uniqueFlag[f.Name[0]]; !ok {
-			uniqueFlag[f.Name[0]] = nil
-			flags = append(flags, f)
-			if len(f.Name[0]) > maxLen {
-				maxLen = runewidth.StringWidth(f.Name[0])
-			}
-			if len(f.Name) > 1 {
+	f.VisitAll(func(flag *Flag) {
+		if _, ok := uniqueFlag[flag.Name[0]]; !ok {
+			uniqueFlag[flag.Name[0]] = nil
+			flags = append(flags, flag)
+
+			// Set boolean if we have multiple flags set
+			if len(flag.Name) > 1 {
 				haveMultiple = true
+			}
+			// Check if we have single char flags
+			for _, name := range flag.Name {
+				if rlen(name) == 1 {
+					haveSingleChar = true
+				}
+			}
+
+			if f.Indent == 0 {
+				myLen := 2*(len(flag.Name)-1) + f.UsageSpace
+				for _, name := range flag.Name {
+					myLen += runewidth.StringWidth(name)
+				}
+
+				// Math to determine width needed
+				if flag.TypeExpected != "" {
+					withTypeLen := myLen + f.TypeSpace + runewidth.StringWidth(flag.TypeExpected)
+					nameAndTypeLen = append(nameAndTypeLen, withTypeLen)
+					avgLen += float64(withTypeLen)
+				} else {
+					nameAndTypeLen = append(nameAndTypeLen, myLen)
+					avgLen += float64(myLen)
+				}
 			}
 		}
 	})
+
+	var indent int
+
+	if f.Indent == 0 {
+		avgLen /= float64(len(nameAndTypeLen))
+		var stdDev float64
+		for _, l := range nameAndTypeLen {
+			stdDev += math.Pow(math.Abs(float64(l)-avgLen), 0.5)
+		}
+		stdDev = math.Pow(stdDev/float64(len(nameAndTypeLen)), 2)
+
+		//if haveMultiple {
+		//	usageIndent = int(avgLen + 4 + stdDev)
+		//} else {
+		indent = int(avgLen + stdDev*2)
+		//}
+	} else {
+		indent = f.Indent
+	}
+
 	//sort.Sort(flags)
 
 	// sort the output flags by shortest name for each group.
@@ -567,12 +608,8 @@ func (f *FlagSet) PrintDefaults() {
 	//	sort.Sort(f)
 	//	byName = append(byName, f)
 	//}
-	padN := maxLen + 4
-	if haveMultiple {
-		padN = maxLen + 8
-	}
 	pad := "\n"
-	for (f.usageIndent == 0 && len(pad) <= padN) || len(pad) <= f.usageIndent {
+	for len(pad) <= indent {
 		pad += " "
 	}
 
@@ -583,25 +620,31 @@ func (f *FlagSet) PrintDefaults() {
 			Names[0], Names[1] = Names[1], Names[0]
 		}
 		line.Reset()
-		if haveMultiple && rlen(Names[0]) > 1 && len(Names) == 1 {
+		if haveSingleChar && haveMultiple && rlen(Names[0]) > 1 && len(Names) == 1 {
+			// Indent if we have multiple and single char flags are found
 			line.WriteString("    ")
 		}
 		for i, n := range Names {
+			// Put commas between flags
 			if i > 0 {
 				line.WriteString(", ")
 			}
 			line.WriteString(flagWithMinus(n))
 		}
 		if len(fs.TypeExpected) > 0 {
-			line.WriteString(" ")
+			// Put space before type
+			for j := 0; j < f.TypeSpace; j++ {
+				line.WriteString(" ")
+			}
 			line.WriteString(fs.TypeExpected)
 		}
-		line.WriteString("  ")
+		// Put space before usage
+		for j := 0; j < f.UsageSpace; j++ {
+			line.WriteString(" ")
+		}
 		usage := fs.Usage
 
-		for (f.usageIndent == 0 && runewidth.StringWidth(line.String()) < padN) ||
-			runewidth.StringWidth(line.String()) < f.usageIndent {
-
+		for runewidth.StringWidth(line.String()) < indent {
 			line.WriteString(" ")
 		}
 		//if haveMultiple {
@@ -617,6 +660,8 @@ func (f *FlagSet) PrintDefaults() {
 		if _, ok := fs.Value.(*presentValue); ok {
 			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
 		} else if _, ok := fs.Value.(*stringSliceValue); ok {
+			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
+		} else if !f.ShowDefaultVal {
 			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
 		} else if _, ok := fs.Value.(*stringValue); ok {
 			// put quotes on string values
@@ -1289,9 +1334,12 @@ func NewFlagSet(name string, errorHandling ErrorHandling) *FlagSet {
 // 'value for option' not 'value for param'.
 func NewFlagSetWithFlagKnownAs(name string, errorHandling ErrorHandling, aka string) *FlagSet {
 	f := &FlagSet{
-		name:          name,
-		errorHandling: errorHandling,
-		FlagKnownAs:   aka,
+		name:           name,
+		errorHandling:  errorHandling,
+		FlagKnownAs:    aka,
+		UsageSpace:     2,
+		TypeSpace:      1,
+		ShowDefaultVal: true,
 	}
 	return f
 }
