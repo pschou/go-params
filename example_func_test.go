@@ -35,7 +35,7 @@ func ExampleFunc() {
 	// {ip: 127.0.0.1, loopback: true}
 	//
 	// invalid value "256.0.0.1" for parameter --ip: could not parse IP
-	// Usage of ExampleFunc:
+	// ExampleFunc option:
 	// --ip ADDR  `IP address` to parse  (Default: "")
 	// {ip: <nil>, loopback: false}
 }

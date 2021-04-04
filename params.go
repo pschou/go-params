@@ -38,6 +38,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -284,8 +285,9 @@ type FlagSet struct {
 
 	name             string
 	parsed           bool
-	actual           map[string]*Flag
-	formal           map[string]*Flag
+	actual           []*Flag
+	formal           []*Flag
+	nameList         []string
 	args             []string // arguments after flags
 	procArgs         []string // arguments being processed (gnu only)
 	procFlag         string   // flag being processed (gnu only)
@@ -293,14 +295,19 @@ type FlagSet struct {
 	exitOnError      bool     // does the program exit if there's an error?
 	errorHandling    ErrorHandling
 	output           io.Writer // nil means stderr; use out() accessor
+	curGrouping      string
+	mulock           *sync.Mutex
 
 	// SetUsageIndent tells the DefaultPrinter how many spaces to add to before
 	// printing the usage for each flag.  By default this is 0 and determined by
 	// the maximum comma seperated name length.
-	Indent int
+	Indent      int
+	UsageIndent int
 
 	UsageSpace int // number of spaces before usage
 	TypeSpace  int // number of spaces before input type string
+
+	ShowGroupings bool
 
 	ShowDefaultVal bool // Display the (Default: "") example
 
@@ -351,19 +358,20 @@ func splitOn(str string, c rune, count int) (out []string) {
 }
 
 // sortFlags returns the flags as a slice in lexicographical sorted order.
-func sortFlags(flags map[string]*Flag) []*Flag {
-	list := make(sort.StringSlice, len(flags))
-	i := 0
-	for _, f := range flags {
-		list[i] = f.Name[0]
-		i++
-	}
-	list.Sort()
-	result := make([]*Flag, len(list))
-	for i, name := range list {
-		result[i] = flags[name]
-	}
-	return result
+func sortFlags(flags []*Flag) []*Flag {
+	list := make(flagsByName, len(flags))
+	copy(list, flags)
+	//i := 0
+	//for _, f := range flags {
+	//	list[i] = f.Name[0]
+	//	i++
+	//}
+	sort.Sort(list)
+	//result := make([]*Flag, len(list))
+	//for i, name := range list {
+	//	result[i] = flags[name]
+	//}
+	return list
 }
 
 // Output returns the destination for usage and error messages. os.Stderr is returned if
@@ -389,6 +397,19 @@ func (f *FlagSet) ErrorHandling() ErrorHandling {
 // If output is nil, os.Stderr is used.
 func (f *FlagSet) SetOutput(output io.Writer) {
 	f.output = output
+}
+
+// SetGrouping sets the grouping set for new flags added.  This is helpful if
+// there are many flags and they can be organized in smaller groupings.
+func SetGrouping(grouping string) {
+	CommandLine.curGrouping = grouping
+}
+
+// SetGrouping sets the grouping set for new flags added.  This is helpful if
+// there are many flags and they can be organized in smaller groupings.
+func (f *FlagSet) SetGrouping(grouping string) {
+	f.ShowGroupings = true
+	f.curGrouping = grouping
 }
 
 // SetAllowIntersperse tells the parser if flags can be interspersed with other
@@ -445,19 +466,40 @@ func Visit(fn func(*Flag)) {
 
 // Lookup returns the Flag structure of the named flag, returning nil if none exists.
 func (f *FlagSet) Lookup(name string) *Flag {
-	return f.formal[name]
+	if f.mulock == nil {
+		f.mulock = new(sync.Mutex)
+	}
+	f.mulock.Lock()
+	defer f.mulock.Unlock()
+	for _, flag := range f.formal {
+		for _, n := range flag.Name {
+			if name == n {
+				return flag
+			}
+		}
+	}
+	return nil
 }
 
 // Lookup returns the Flag structure of the named command-line flag,
 // returning nil if none exists.
 func Lookup(name string) *Flag {
-	return CommandLine.formal[name]
+	return CommandLine.Lookup(name)
 }
 
 // Set sets the value of the named flag.
 func (f *FlagSet) Set(name string, value []string) error {
-	flag, ok := f.formal[name]
-	if !ok {
+	f.mulock.Lock()
+	defer f.mulock.Unlock()
+	var flag *Flag
+	for _, flagTest := range f.formal {
+		for _, n := range flagTest.Name {
+			if n == name {
+				flag = flagTest
+			}
+		}
+	}
+	if flag == nil {
 		return fmt.Errorf("no such %v -%v", f.FlagKnownAs, name)
 	}
 	err := flag.Value.Set(value)
@@ -465,9 +507,9 @@ func (f *FlagSet) Set(name string, value []string) error {
 		return err
 	}
 	if f.actual == nil {
-		f.actual = make(map[string]*Flag)
+		f.actual = make([]*Flag, 0)
 	}
-	f.actual[name] = flag
+	f.actual = append(f.actual, flag)
 	return nil
 }
 
@@ -495,6 +537,7 @@ func (f flagsByLength) Swap(i, j int) {
 func (f flagsByLength) Len() int {
 	return len(f)
 }
+*/
 
 // flagsByName is a slice of slices of flags implementing sort.Interface,
 // alphabetically sorting by the name of the first flag in each slice.
@@ -502,10 +545,10 @@ type flagsByName []*Flag
 
 func (f flagsByName) Less(i, j int) bool {
 	var a, b int
-	if len(f[i].Name) > 1 {
+	if len(f[i].Name) > 1 && len(f[i].Name[0]) == 1 && len(f[i].Name[1]) > 1 {
 		a = 1
 	}
-	if len(f[j].Name) > 1 {
+	if len(f[j].Name) > 1 && len(f[j].Name[0]) == 1 && len(f[i].Name[1]) > 1 {
 		b = 1
 	}
 	return f[i].Name[a] < f[j].Name[b]
@@ -517,7 +560,6 @@ func (f flagsByName) Len() int {
 	return len(f)
 }
 
-*/
 /*
 func (f *FlagSet) ptrToVal(ptr string) (ret Value) {
 	f.VisitAll(func(f *Flag) {
@@ -544,46 +586,63 @@ func (f *FlagSet) PrintDefaults() {
 	// group together all flags for a given value
 	var flags [](*Flag)
 	var nameAndTypeLen []int
-	var avgLen float64
-	var uniqueFlag = make(map[string]interface{})
-	f.VisitAll(func(flag *Flag) {
-		if _, ok := uniqueFlag[flag.Name[0]]; !ok {
-			uniqueFlag[flag.Name[0]] = nil
-			flags = append(flags, flag)
+	var groupings []string
+	var groupingsCount = map[string]int{}
 
-			// Set boolean if we have multiple flags set
-			if len(flag.Name) > 1 {
-				haveMultiple = true
-			}
-			// Check if we have single char flags
-			for _, name := range flag.Name {
-				if rlen(name) == 1 {
-					haveSingleChar = true
-				}
-			}
-
-			if f.Indent == 0 {
-				myLen := 2*(len(flag.Name)-1) + f.UsageSpace
-				for _, name := range flag.Name {
-					myLen += runewidth.StringWidth(name)
-				}
-
-				// Math to determine width needed
-				if flag.TypeExpected != "" {
-					withTypeLen := myLen + f.TypeSpace + runewidth.StringWidth(flag.TypeExpected)
-					nameAndTypeLen = append(nameAndTypeLen, withTypeLen)
-					avgLen += float64(withTypeLen)
-				} else {
-					nameAndTypeLen = append(nameAndTypeLen, myLen)
-					avgLen += float64(myLen)
-				}
+	f.mulock.Lock()
+loop_formals:
+	for _, flag := range f.formal {
+		for _, grp := range groupings {
+			if grp == flag.Grouping {
+				groupingsCount[flag.Grouping]++
+				continue loop_formals
 			}
 		}
+		groupings = append(groupings, flag.Grouping)
+		groupingsCount[flag.Grouping] = 1
+	}
+	f.mulock.Unlock()
+
+	var avgLen float64
+	//var uniqueFlag = make(map[string]interface{})
+	f.VisitAll(func(flag *Flag) {
+		//if _, ok := uniqueFlag[flag.Name[0]]; !ok {
+		//uniqueFlag[flag.Name[0]] = nil
+		flags = append(flags, flag)
+
+		// Set boolean if we have multiple flags set
+		if len(flag.Name) > 1 {
+			haveMultiple = true
+		}
+		// Check if we have single char flags
+		for _, name := range flag.Name {
+			if rlen(name) == 1 {
+				haveSingleChar = true
+			}
+		}
+
+		if f.UsageIndent == 0 {
+			myLen := 2*(len(flag.Name)-1) + f.UsageSpace + f.Indent
+			for _, name := range flag.Name {
+				myLen += runewidth.StringWidth(name)
+			}
+
+			// Math to determine width needed
+			if flag.TypeExpected != "" {
+				withTypeLen := myLen + f.TypeSpace + runewidth.StringWidth(flag.TypeExpected)
+				nameAndTypeLen = append(nameAndTypeLen, withTypeLen)
+				avgLen += float64(withTypeLen)
+			} else {
+				nameAndTypeLen = append(nameAndTypeLen, myLen)
+				avgLen += float64(myLen)
+			}
+		}
+		//}
 	})
 
-	var indent int
+	var usageIndent int
 
-	if f.Indent == 0 {
+	if f.UsageIndent == 0 {
 		avgLen /= float64(len(nameAndTypeLen))
 		var stdDev float64
 		for _, l := range nameAndTypeLen {
@@ -591,13 +650,9 @@ func (f *FlagSet) PrintDefaults() {
 		}
 		stdDev = math.Pow(stdDev/float64(len(nameAndTypeLen)), 2)
 
-		//if haveMultiple {
-		//	usageIndent = int(avgLen + 4 + stdDev)
-		//} else {
-		indent = int(avgLen + stdDev*2)
-		//}
+		usageIndent = int(avgLen + stdDev*2)
 	} else {
-		indent = f.Indent
+		usageIndent = f.UsageIndent
 	}
 
 	//sort.Sort(flags)
@@ -609,71 +664,92 @@ func (f *FlagSet) PrintDefaults() {
 	//	byName = append(byName, f)
 	//}
 	pad := "\n"
-	for len(pad) <= indent {
+	for len(pad) <= usageIndent {
 		pad += " "
 	}
 
 	var line bytes.Buffer
-	for _, fs := range flags {
-		Names := fs.Name[:]
-		if len(Names) > 1 && rlen(Names[0]) > 1 && rlen(Names[1]) == 1 {
-			Names[0], Names[1] = Names[1], Names[0]
-		}
-		line.Reset()
-		if haveSingleChar && haveMultiple && rlen(Names[0]) > 1 && len(Names) == 1 {
-			// Indent if we have multiple and single char flags are found
-			line.WriteString("    ")
-		}
-		for i, n := range Names {
-			// Put commas between flags
-			if i > 0 {
-				line.WriteString(", ")
+	for _, grp := range groupings {
+		if f.ShowGroupings {
+			// Print group headers
+			plural := ""
+			if groupingsCount[grp] > 1 {
+				plural = "s"
 			}
-			line.WriteString(flagWithMinus(n))
+			if grp == "" {
+				fmt.Fprintf(f.Output(), "Option%s:\n", plural)
+			} else {
+				fmt.Fprintf(f.Output(), "%s option%s:\n", grp, plural)
+			}
 		}
-		if len(fs.TypeExpected) > 0 {
-			// Put space before type
-			for j := 0; j < f.TypeSpace; j++ {
+
+		for _, fs := range flags {
+			if f.ShowGroupings {
+				// Skip all flags not assigned to this group
+				if fs.Grouping != grp {
+					continue
+				}
+			}
+
+			Names := fs.Name[:]
+			if len(Names) > 1 && rlen(Names[0]) > 1 && rlen(Names[1]) == 1 {
+				Names[0], Names[1] = Names[1], Names[0]
+			}
+			line.Reset()
+			for j := 0; j < f.Indent; j++ {
 				line.WriteString(" ")
 			}
-			line.WriteString(fs.TypeExpected)
-		}
-		// Put space before usage
-		for j := 0; j < f.UsageSpace; j++ {
-			line.WriteString(" ")
-		}
-		usage := fs.Usage
+			if haveSingleChar && haveMultiple && rlen(Names[0]) > 1 && len(Names) == 1 {
+				// Indent if we have multiple and single char flags are found
+				line.WriteString("    ")
+			}
+			for i, n := range Names {
+				// Put commas between flags
+				if i > 0 {
+					line.WriteString(", ")
+				}
+				line.WriteString(flagWithMinus(n))
+			}
+			if len(fs.TypeExpected) > 0 {
+				// Put space before type
+				for j := 0; j < f.TypeSpace; j++ {
+					line.WriteString(" ")
+				}
+				line.WriteString(fs.TypeExpected)
+			}
+			// Put space before usage
+			for j := 0; j < f.UsageSpace; j++ {
+				line.WriteString(" ")
+			}
+			usage := fs.Usage
 
-		for runewidth.StringWidth(line.String()) < indent {
-			line.WriteString(" ")
+			for runewidth.StringWidth(line.String()) < usageIndent {
+				line.WriteString(" ")
+			}
+
+			usage = strings.ReplaceAll(usage, "\n", pad)
+			if _, ok := fs.Value.(*presentValue); ok {
+				fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
+			} else if _, ok := fs.Value.(*stringSliceValue); ok {
+				fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
+			} else if !f.ShowDefaultVal {
+				fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
+			} else if _, ok := fs.Value.(*stringValue); ok {
+				// put quotes on string values
+				format := "%s%s  (%s%q)\n"
+				fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
+			} else if _, ok := fs.Value.(funcValue); ok {
+				// put quotes on empty func values
+				format := "%s%s  (%s%q)\n"
+				fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
+			} else {
+				format := "%s%s  (%s%s)\n"
+				fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
+			}
 		}
-		//if haveMultiple {
-		//} else {
-		//	for (f.usageIndent == 0 && line.Len() < maxLen+4) || line.Len() < f.usageIndent {
-		//		line.WriteString(" ")
-		//	}
-		//for line.Len()-3 < maxLen || line.Len() < f.usageIndent-1 {
-		//	line.WriteString(" ")
-		//}
-		//}
-		usage = strings.ReplaceAll(usage, "\n", pad)
-		if _, ok := fs.Value.(*presentValue); ok {
-			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
-		} else if _, ok := fs.Value.(*stringSliceValue); ok {
-			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
-		} else if !f.ShowDefaultVal {
-			fmt.Fprintf(f.Output(), "%s%s\n", line.Bytes(), usage)
-		} else if _, ok := fs.Value.(*stringValue); ok {
-			// put quotes on string values
-			format := "%s%s  (%s%q)\n"
-			fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
-		} else if _, ok := fs.Value.(funcValue); ok {
-			// put quotes on empty func values
-			format := "%s%s  (%s%q)\n"
-			fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
-		} else {
-			format := "%s%s  (%s%s)\n"
-			fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
+
+		if !f.ShowGroupings {
+			break
 		}
 	}
 }
@@ -685,10 +761,14 @@ func PrintDefaults() {
 
 // defaultUsage is the default function to print a usage message.
 func defaultUsage(f *FlagSet) {
+	plural := ""
+	if len(f.formal) > 1 {
+		plural = "s"
+	}
 	if f.name == "" {
-		fmt.Fprintf(f.Output(), "Usage:\n")
+		fmt.Fprintf(f.Output(), "Option%s:\n", plural)
 	} else {
-		fmt.Fprintf(f.Output(), "Usage of %s:\n", f.name)
+		fmt.Fprintf(f.Output(), "%s option%s:\n", f.name, plural)
 	}
 	f.PrintDefaults()
 }
@@ -1035,18 +1115,23 @@ func (f *FlagSet) Var(value Value, flagStr string, usage string, typeExp string,
 		DefValue:     value.String(),
 		TypeExpected: typeExp,
 		ArgsNeeded:   args,
+		Grouping:     f.curGrouping,
 	}
+
+	// Check if the flag exists already
 	for _, name := range names {
-		_, alreadythere := f.formal[name]
-		if alreadythere {
+		alreadythere := f.Lookup(name)
+		if alreadythere != nil {
 			fmt.Fprintf(f.Output(), "%s %v redefined: %s\n", f.name, f.FlagKnownAs, name)
 			panic(fmt.Sprintf("%v redefinition", f.FlagKnownAs)) // Happens only if flags are declared with identical names
 		}
-		if f.formal == nil {
-			f.formal = make(map[string]*Flag)
-		}
-		f.formal[name] = flag
 	}
+
+	// Go ahead and add this new flag
+	if f.formal == nil {
+		f.formal = make([]*Flag, 0)
+	}
+	f.formal = append(f.formal, flag)
 }
 
 // Var defines a flag with the specified name and usage string. The type and
@@ -1159,9 +1244,8 @@ func flagWithMinus(name string) string {
 }
 
 func (f *FlagSet) parseFlagArg(name string, long bool) (finished bool, err error) {
-	m := f.formal
-	flag, alreadythere := m[name] // BUG
-	if !alreadythere {
+	flag := f.Lookup(name)
+	if flag == nil {
 		if name == "help" || name == "h" { // special case for nice help message.
 			f.usage()
 			ErrHelp = errors.New(fmt.Sprintf("%v: %v", f.FlagKnownAs, ErrHelp.Error()))
@@ -1238,10 +1322,12 @@ func (f *FlagSet) parseFlagArg(name string, long bool) (finished bool, err error
 				f.procArgs[:flag.ArgsNeeded], f.FlagKnownAs, flagWithMinus(name), err)
 		}
 	}
+	f.mulock.Lock()
+	defer f.mulock.Unlock()
 	if f.actual == nil {
-		f.actual = make(map[string]*Flag)
+		f.actual = make([]*Flag, 0)
 	}
-	f.actual[name] = flag
+	f.actual = append(f.actual, flag)
 	return
 }
 
@@ -1308,7 +1394,7 @@ func Parsed() bool {
 // CommandLine is the default set of command-line flags, parsed from os.Args.
 // The top-level functions such as BoolVar, Arg, and so on are wrappers for the
 // methods of CommandLine.
-var CommandLine = NewFlagSet(os.Args[0], ExitOnError)
+var CommandLine = NewFlagSet("", ExitOnError)
 
 func init() {
 	// Override generic FlagSet default Usage with call to global Usage.
@@ -1340,6 +1426,7 @@ func NewFlagSetWithFlagKnownAs(name string, errorHandling ErrorHandling, aka str
 		UsageSpace:     2,
 		TypeSpace:      1,
 		ShowDefaultVal: true,
+		mulock:         new(sync.Mutex),
 	}
 	return f
 }
