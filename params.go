@@ -301,13 +301,14 @@ type FlagSet struct {
 	// SetUsageIndent tells the DefaultPrinter how many spaces to add to before
 	// printing the usage for each flag.  By default this is 0 and determined by
 	// the maximum comma seperated name length.
-	Indent      int
-	UsageIndent int
+	Indent      int // beginning of line space
+	UsageIndent int // usage column position
 
-	UsageSpace int // number of spaces before usage
-	TypeSpace  int // number of spaces before input type string
+	UsageSpace int // minimum number of spaces required before usage
+	TypeSpace  int // minimum number of spaces required before input type string
 
-	ShowGroupings bool
+	ShowGroupings   bool                     // Show the flags in groups
+	GroupingHeaders func(string, int) string // function used to generate headers, like "Options:"
 
 	ShowDefaultVal bool // Display the (Default: "") example
 
@@ -399,16 +400,15 @@ func (f *FlagSet) SetOutput(output io.Writer) {
 	f.output = output
 }
 
-// SetGrouping sets the grouping set for new flags added.  This is helpful if
+// GroupingSet creates a grouping set for new flags added.  This is helpful if
 // there are many flags and they can be organized in smaller groupings.
-func SetGrouping(grouping string) {
+func GroupingSet(grouping string) {
 	CommandLine.curGrouping = grouping
 }
 
-// SetGrouping sets the grouping set for new flags added.  This is helpful if
+// GroupingSet creates a grouping set for new flags added.  This is helpful if
 // there are many flags and they can be organized in smaller groupings.
-func (f *FlagSet) SetGrouping(grouping string) {
-	f.ShowGroupings = true
+func (f *FlagSet) GroupingSet(grouping string) {
 	f.curGrouping = grouping
 }
 
@@ -672,7 +672,8 @@ loop_formals:
 	for _, grp := range groupings {
 		if f.ShowGroupings {
 			// Print group headers
-			plural := ""
+			fmt.Fprintln(f.Output(), f.GroupingHeaders(grp, groupingsCount[grp]))
+			/*plural := ""
 			if groupingsCount[grp] > 1 {
 				plural = "s"
 			}
@@ -680,7 +681,7 @@ loop_formals:
 				fmt.Fprintf(f.Output(), "Option%s:\n", plural)
 			} else {
 				fmt.Fprintf(f.Output(), "%s option%s:\n", grp, plural)
-			}
+			}*/
 		}
 
 		for _, fs := range flags {
@@ -761,15 +762,6 @@ func PrintDefaults() {
 
 // defaultUsage is the default function to print a usage message.
 func defaultUsage(f *FlagSet) {
-	plural := ""
-	if len(f.formal) > 1 {
-		plural = "s"
-	}
-	if f.name == "" {
-		fmt.Fprintf(f.Output(), "Option%s:\n", plural)
-	} else {
-		fmt.Fprintf(f.Output(), "%s option%s:\n", f.name, plural)
-	}
 	f.PrintDefaults()
 }
 
@@ -780,8 +772,22 @@ func defaultUsage(f *FlagSet) {
 // Usage prints to standard error a usage message documenting all defined command-line flags.
 // The function is a variable that may be changed to point to a custom function.
 var Usage = func() {
-	fmt.Fprintf(CommandLine.Output(), "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(CommandLine.Output(), "Usage:\n  %s [options...] [args...]\n", os.Args[0])
 	PrintDefaults()
+}
+
+// Usage prints to standard error a usage message documenting all defined command-line flags.
+// The function is a variable that may be changed to point to a custom function.
+var defaultGroupingHeaders = func(name string, count int) string {
+	plural := ""
+	if count > 1 {
+		plural = "s"
+	}
+	if name == "" {
+		return fmt.Sprintf("Option%s:", plural)
+	} else {
+		return fmt.Sprintf("%s option%s:", name, plural)
+	}
 }
 
 // NFlag returns the number of flags that have been set.
@@ -1420,13 +1426,15 @@ func NewFlagSet(name string, errorHandling ErrorHandling) *FlagSet {
 // 'value for option' not 'value for param'.
 func NewFlagSetWithFlagKnownAs(name string, errorHandling ErrorHandling, aka string) *FlagSet {
 	f := &FlagSet{
-		name:           name,
-		errorHandling:  errorHandling,
-		FlagKnownAs:    aka,
-		UsageSpace:     2,
-		TypeSpace:      1,
-		ShowDefaultVal: true,
-		mulock:         new(sync.Mutex),
+		name:            name,
+		errorHandling:   errorHandling,
+		FlagKnownAs:     aka,
+		UsageSpace:      2,
+		TypeSpace:       1,
+		ShowDefaultVal:  true,
+		mulock:          new(sync.Mutex),
+		ShowGroupings:   true,
+		GroupingHeaders: defaultGroupingHeaders,
 	}
 	return f
 }
