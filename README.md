@@ -25,6 +25,55 @@ As there are many example of a programs that handle parameters differently, let 
 package to build a toolbox from, `curl`.  This has been done; in this `param` package, GoLang can duplicate
 the output of `curl`.
 
+# Example
+
+Here is what it looks like when implemented:
+```
+var version = "0.0"
+func main() {
+  // Set a custom header,
+  params.Usage = func() {
+    fmt.Fprintf(os.Stderr, "My Sample, Version: %s\n\n" +
+      "Usage: %s [options...]\n\n", version, os.Args[0])
+    params.PrintDefaults()
+  }
+
+  // An example boolean flag, used like this: -tls true -tls false, or optionally: -tls=true -tls=false
+  var tls_enabled = params.Bool("tls", true, "Enable listener TLS", "BOOL")
+
+  // An example of a present flag, returns true if it was seen
+  var verbose = params.Pres("debug", "Verbose output")
+
+  // Start of a grouping set
+  params.GroupingSet("Listener")
+  var listen = params.String("listen", ":7443", "Listen address for forwarder", "HOST:PORT")
+  var verify_server = params.Bool("verify-server", true, "Verify server, do certificate checks", "BOOL")
+  var secure_server = params.Bool("secure-server", true, "Enforce minimum of TLS 1.2 on server side", "BOOL")
+
+  // Start of another grouping set
+  params.GroupingSet("Target")
+  var target = params.String("target", "127.0.0.1:443", "Sending address for forwarder", "HOST:PORT")
+  var verify_client = params.Bool("verify-client", true, "Verify client, do certificate checks", "BOOL")
+  var secure_client = params.Bool("secure-client", true, "Enforce minimum of TLS 1.2 on client side", "BOOL")
+  // using -H and --host as options, all one needs to do is add a space
+  var tls_host = params.String("H host", "", "Hostname to verify outgoing connection with", "FQDN")
+
+  // Start of our last grouping set
+  params.GroupingSet("Certificate")
+  var cert_file = params.String("cert", "/etc/pki/server.pem", "File to load with CERT - automatically reloaded every minute\n", "FILE")
+  var key_file = params.String("key", "/etc/pki/server.pem", "File to load with KEY - automatically reloaded every minute\n", "FILE")
+  var root_file = params.String("ca", "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", "File to load with ROOT CAs - reloaded every minute by adding any new entries\n", "FILE")
+
+  // Indicate that we want all the flags indented for ease of reading
+  params.CommandLine.Indent = 2
+
+  // Let us parse everything!
+  params.Parse()
+
+  // ... Variables are ready for use now!
+}
+```
+
 # Real World Examples
 Here are some examples which demonstrate the power of this paramber parsing tool.
 
