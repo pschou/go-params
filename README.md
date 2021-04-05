@@ -35,7 +35,7 @@ This re-write includes some notable differences:
   ```
   ctl --install pkgA pkgB pkgC --remove pkgX
   ```
-- Allow interspersed parameters if set `-a data -b` is the same as `-a -b data`.
+- Allow interspersed parameters.  If set `-a data -b` is the same as `-a -b data`.
 
 # Example
 
