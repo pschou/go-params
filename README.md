@@ -2,24 +2,23 @@ go-params
 -----
 
 The package is a fork of the Go standard library flag and gnuflag.  As this
-package is a rewrite to enable additional functionality and usability.  The driving motivation was
-to provide a solution to the missing toolbox for a good flag parser that is both simple and doesn't
-differ from other gnu programs.  Some models used in the creation of this tool is the openldap and curl
-help flags.  This is a personal project (aka: no funding), and thus my support time is limited!
+package is a rewrite to enable additional functionality and usability, one will find it is significantly different from the source.  The driving motivation was
+to provide a solution to the missing toolbox, an excellent flag parser that is simple and is very similar to other gnu programs.  Being very similar to other gnu programs lowers the learning curve for users to use flags in go-built-tools.  Modeled gnu programs used in the creation of this tool are the openldap and curl
+help flags.  As this is a personal project (aka no funding), my support time is limited!
 
 # Goals
 
 This re-write includes some notable differences:
 
-- `--longflag` and `-l` single-character flag syntax
-- flag stacking `-abc` is the same as `-a -b -c` for present flags
-- full unicode support and printing with alignment
-- multiple flags for a single value `-i, --include`
-- exemplifies the needed input type `--time DURATION`
-- custom definable functions to handle parsing of value
-- ability to allow more than one input per parameter
-- collect a dynamic number of strings per flag into a slice, like args after `--install`
-- allow interspersed parameters, if set `-a data -b` is the same as `-a -b data`
+- Support for both `--longflag` and `-l` single-character flag syntax
+- Flag stacking `-abc` is the same as `-a -b -c` for present flags
+- Full unicode support for inputs and printing with alignment
+- Multiple flags for a single target value `-i, --include`
+- Custom exemplars demonstrating the needed input type `--time DURATION   How long to wait for a reply.`
+- Custom definable functions to handle parsing of value
+- Ability to allow more than one input per parameter `--port-range 1080 1090`
+- Collect a dynamic number of strings per flag into a slice, like args after `--install pkgA pkgB pkgC ...`
+- Allow interspersed parameters, if set `-a data -b` is the same as `-a -b data`
 
 # Background
 
