@@ -17,7 +17,7 @@ This re-write includes some notable differences:
 - Custom exemplars demonstrating the needed input type `--time DURATION   How long to wait for a reply.`
 - Custom definable functions to handle parsing of value
 - Ability to allow more than one input per parameter `--port-range 1080 1090`
-- Collect a dynamic number of strings per flag into a slice, like args after `--install pkgA pkgB pkgC ...`
+- Collect a dynamic number of strings per flag into a slice, like args after `--install pkgA pkgB pkgC --remove pkgX`
 - Allow interspersed parameters, if set `-a data -b` is the same as `-a -b data`
 
 # Background
