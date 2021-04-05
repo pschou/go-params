@@ -24,6 +24,11 @@
 	Flag parsing stops after the terminator "--", or just before the first
 	non-flag argument ("-" is a non-flag argument) if the interspersed
 	argument to Parse is false.
+
+TODOs:
+- add flag for printing out all the possible flags for ease of tab completion
+- parse the _POSIX_OPTION_ORDER environment variable for ignoring the flag forder,
+-    see https://www.gnu.org/software/libc/manual/html_node/Standard-Environment.html
 */
 package params
 
