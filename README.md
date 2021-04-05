@@ -27,7 +27,7 @@ This re-write includes some notable differences:
 - Multiple flags for a single target value `-i, --include`.
 - Custom exemplars demonstrating the needed input type 
   ```
-  --time DURATION   How long to wait for a reply.
+  --time DURATION   How long to wait for a reply.  (Default: 5s)
   ```
 - Custom definable functions to handle the parsing of parameters.
 - Ability to allow more than one input per parameter `--port-range 1080 1090`, by using the custom var and the needed count.
