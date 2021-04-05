@@ -25,7 +25,10 @@ This re-write includes some notable differences:
 - Flag stacking `-abc` is the same as `-a -b -c` for present flags.
 - Unicode support for inputs and printing with alignment.
 - Multiple flags for a single target value `-i, --include`.
-- Custom exemplars demonstrating the needed input type `--time DURATION   How long to wait for a reply.`
+- Custom exemplars demonstrating the needed input type 
+  ```
+  --time DURATION   How long to wait for a reply.
+  ```
 - Custom definable functions to handle the parsing of parameters.
 - Ability to allow more than one input per parameter `--port-range 1080 1090`, by using the custom var and the needed count.
 - Collect a dynamic number of strings per flag into a slice, like args after `--install pkgA pkgB pkgC --remove pkgX`.
