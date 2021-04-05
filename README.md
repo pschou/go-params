@@ -31,7 +31,10 @@ This re-write includes some notable differences:
   ```
 - Custom definable functions to handle the parsing of parameters.
 - Ability to allow more than one input per parameter `--port-range 1080 1090`, by using the custom var and the needed count.
-- Collect a dynamic number of strings per flag into a slice, like args after `--install pkgA pkgB pkgC --remove pkgX`.
+- Collect a dynamic number of strings per flag into a slice, like multiple packages afer an `--install` flag.
+  ```
+  ctl --install pkgA pkgB pkgC --remove pkgX
+  ```
 - Allow interspersed parameters if set `-a data -b` is the same as `-a -b data`.
 
 # Example
