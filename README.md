@@ -99,10 +99,7 @@ Here are some examples which demonstrate the power of this paramber parsing tool
 ## SSL-Forwarder -- https://github.com/pschou/ssl-forwarder
 ```
 $ ./ssl-forwarder -h
-Simple SSL forwarder, written by Paul Schou (github.com/pschou/ssl-forwarder) in December 2020
-All rights reserved, personal use only, provided AS-IS -- not responsible for loss.
-Usage implies agreement.
-
+...
 Usage: ./ssl-forwarder [options...]
 
 Options:
