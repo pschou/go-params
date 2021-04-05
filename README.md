@@ -184,7 +184,28 @@ Certificate options:
       --key FILE       Key file for client cert, PEM encoded  (Default="")
 ```
 
-
+Last, but not least, an test example using some unicode:
+```
+-A          for bootstrapping, allow 'any' type  (Default: false)
+    --Alongflagname  disable bounds checking  (Default: false)
+-C          a boolean defaulting to true  (Default: true)
+-D          set relative path for local imports  (Default: "")
+-E          issue 23543  (Default: "0")
+-F STR      issue 23543  (Default: "0")
+-I          a non-zero number  (Default: 2.7)
+-K          a float that defaults to zero  (Default: 0)
+-M          a multiline
+            help
+            string  (Default: "")
+-N          a non-zero int  (Default: 27)
+-O          a flag
+            multiline help string  (Default: true)
+-Z          an int that defaults to zero  (Default: 0)
+-G, --grind STR  issue 23543  (Default: "0")
+    --maxT  set timeout for dial  (Default: 0s)
+-世         a present flag
+    --世界  unicode string  (Default: "hello")
+```
 
 
 
