@@ -15,11 +15,11 @@ Src: https://www.gnu.org/software/libc/manual/html_node/Argument-Syntax.html
 >
 > - Arguments are options if they begin with a hyphen delimiter (‘-’).
 > - Multiple options may follow a hyphen delimiter in a single token if the options do not take arguments. Thus, ‘-abc’ is equivalent to ‘-a -b -c’.
-> - Option names are single alphanumeric characters (as for isalnum; see Classification of Characters).
+> - Option names are single alphanumeric characters (as for isalnum; see Classification of Characters, https://www.gnu.org/software/libc/manual/html_node/Classification-of-Characters.html).
 > - Certain options require an argument. For example, the ‘-o’ command of the ld command requires an argument—an output file name.
 > - An option and its argument may or may not appear as separate tokens. (In other words, the whitespace separating them is optional.) Thus, ‘-o foo’ and ‘-ofoo’ are equivalent.
 > - Options typically precede other non-option arguments.
-> > The implementations of getopt and argp_parse in the GNU C Library normally make it appear as if all the option arguments were specified before all the non-option arguments for the purposes of parsing, even if the user of your program intermixed option and non-option arguments. They do this by reordering the elements of the argv array. This behavior is nonstandard; if you want to suppress it, define the _POSIX_OPTION_ORDER environment variable. See Standard Environment.
+> > The implementations of getopt and argp_parse in the GNU C Library normally make it appear as if all the option arguments were specified before all the non-option arguments for the purposes of parsing, even if the user of your program intermixed option and non-option arguments. They do this by reordering the elements of the argv array. This behavior is nonstandard; if you want to suppress it, define the _POSIX_OPTION_ORDER environment variable. See Standard Environment, https://www.gnu.org/software/libc/manual/html_node/Standard-Environment.html.
 > - The argument ‘--’ terminates all options; any following arguments are treated as non-option arguments, even if they begin with a hyphen.
 > - A token consisting of a single hyphen character is interpreted as an ordinary non-option argument. By convention, it is used to specify input from or output to the standard input and output streams.
 > - Options may be supplied in any order, or appear multiple times. The interpretation is left up to the particular application program.
