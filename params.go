@@ -28,7 +28,8 @@
 TODOs:
 - add flag for printing out all the possible flags for ease of tab completion
 - parse the _POSIX_OPTION_ORDER environment variable for ignoring the flag forder,
--    see https://www.gnu.org/software/libc/manual/html_node/Standard-Environment.html
+    see https://www.gnu.org/software/libc/manual/html_node/Standard-Environment.html
+- add thin space for all the double wide chars for alignment
 */
 package params
 
