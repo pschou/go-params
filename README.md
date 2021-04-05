@@ -14,7 +14,7 @@ This re-write includes some notable differences:
 - Addition of "present" flag with no parameters needed.
 - Boolean flags always requires a boolean input, true, t, 1, false, f, or 0 with either a space ' ' or '=' seperator.
 - Flag stacking `-abc` is the same as `-a -b -c` for present flags.
-- Full unicode support for inputs and printing with alignment.
+- Unicode support for inputs and printing with alignment.
 - Multiple flags for a single target value `-i, --include`.
 - Custom exemplars demonstrating the needed input type `--time DURATION   How long to wait for a reply.`
 - Custom definable functions to handle parsing of value.
