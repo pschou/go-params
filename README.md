@@ -3,7 +3,7 @@ go-params
 
 # Introduction
 
-What would the module look like if GoLang provided a full-featured flag/parameter parsing package?  ... One which offers flexibility, simplicity while also maintaining the familiar look-and-feel other open-source packages provide.  We must clone the best we can the look-and-feel of other commonly used Linux packages to lower our users' learning curve and blend in with the rest of the technologies available.  Welcome to the solution, go-param.
+What would the module look like if GoLang provided a full-featured flag/parameter parsing package?  What if it offers flexibility, simplicity while also maintaining the familiar look-and-feel other open-source packages provide?  As programmers, we must provide that comfort level to our users, match the look-and-feel used by other commonly used Linux packages.  This a community effort as by matching other common usage packages, we ultimately lower our users' learning curve and blend in with the rest of the technologies available.  Welcome to the solution for GoLang that does just this, go-param.
 
 As there are many examples of programs that handle parameters differently, let us choose two commonly used
 packages of which to model and build a generic module to mimic.  The two selected are `ldapsearch` and `curl`.  The first has been around for over two decades, and the second is fairly new.  Both are well used and understood by the Linux community as a whole.  The goal here is to lower the bar of learning and make the flags operate as close as other linux tools operate to ease user's learning curve.  The goal is finished!  With this `param` package, GoLang can output the same help and parse the same parameter inputs.
