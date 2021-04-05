@@ -75,9 +75,40 @@ func main() {
   // ... Variables are ready for use now!
 }
 ```
+This example was taken directly from the SSL-Forwarder program (below) so one may compare the output and see what it looks like in the finished product.
 
 # Real World Examples
 Here are some examples which demonstrate the power of this paramber parsing tool.
+
+## SSL-Forwarder -- https://github.com/pschou/ssl-forwarder
+```
+$ ./ssl-forwarder -h
+Simple SSL forwarder, written by Paul Schou (github.com/pschou/ssl-forwarder) in December 2020
+All rights reserved, personal use only, provided AS-IS -- not responsible for loss.
+Usage implies agreement.
+
+Usage: ./ssl-forwarder [options...]
+
+Options:
+  --debug                 Verbose output
+  --tls BOOL              Enable listener TLS  (Default: true)
+Listener options:
+  --listen HOST:PORT      Listen address for forwarder  (Default: ":7443")
+  --secure-server BOOL    Enforce minimum of TLS 1.2 on server side  (Default: true)
+  --verify-server BOOL    Verify server, do certificate checks  (Default: true)
+Target options:
+  --host FQDN             Hostname to verify outgoing connection with  (Default: "")
+  --secure-client BOOL    Enforce minimum of TLS 1.2 on client side  (Default: true)
+  --target HOST:PORT      Sending address for forwarder  (Default: "127.0.0.1:443")
+  --verify-client BOOL    Verify client, do certificate checks  (Default: true)
+Certificate options:
+  --ca FILE               File to load with ROOT CAs - reloaded every minute by adding any new entries
+                            (Default: "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem")
+  --cert FILE             File to load with CERT - automatically reloaded every minute
+                            (Default: "/etc/pki/server.pem")
+  --key FILE              File to load with KEY - automatically reloaded every minute
+                            (Default: "/etc/pki/server.pem")
+```
 
 ## Prom-collector -- https://github.com/pschou/prom-collector
 ```
@@ -140,35 +171,7 @@ Certificate options:
       --key FILE       Key file for client cert, PEM encoded  (Default="")
 ```
 
-## SSL-Forwarder -- https://github.com/pschou/ssl-forwarder
-```
-$ ./ssl-forwarder -h
-Simple SSL forwarder, written by Paul Schou (github.com/pschou/ssl-forwarder) in December 2020
-All rights reserved, personal use only, provided AS-IS -- not responsible for loss.
-Usage implies agreement.
 
-Usage: ./ssl-forwarder [options...]
-
-Options:
-  --debug                 Verbose output
-  --tls BOOL              Enable listener TLS  (Default: true)
-Listener options:
-  --listen HOST:PORT      Listen address for forwarder  (Default: ":7443")
-  --secure-server BOOL    Enforce minimum of TLS 1.2 on server side  (Default: true)
-  --verify-server BOOL    Verify server, do certificate checks  (Default: true)
-Target options:
-  --host FQDN             Hostname to verify outgoing connection with  (Default: "")
-  --secure-client BOOL    Enforce minimum of TLS 1.2 on client side  (Default: true)
-  --target HOST:PORT      Sending address for forwarder  (Default: "127.0.0.1:443")
-  --verify-client BOOL    Verify client, do certificate checks  (Default: true)
-Certificate options:
-  --ca FILE               File to load with ROOT CAs - reloaded every minute by adding any new entries
-                            (Default: "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem")
-  --cert FILE             File to load with CERT - automatically reloaded every minute
-                            (Default: "/etc/pki/server.pem")
-  --key FILE              File to load with KEY - automatically reloaded every minute
-                            (Default: "/etc/pki/server.pem")
-```
 
 
 
