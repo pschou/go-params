@@ -13,7 +13,7 @@ packages of which to model and build a generic module to mimic.  The two selecte
 This package is a fork of the Go standard library flag and gnuflag.  As this
 package is a rewrite to enable additional functionality and usability, one will find it is significantly different from the source.  The driving motivation was
 to provide a solution to the missing toolbox, an excellent flag parser that is simple and is very similar to other gnu programs.  Being very similar to other gnu programs lowers the learning curve for users to use flags in go-built-tools.  Modeled gnu programs used in the creation of this tool are the openldap and curl
-help flags.  As this is a personal project (aka no funding), my support time is limited!
+help flags. 
 
 # Goals
 
