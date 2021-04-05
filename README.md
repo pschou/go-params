@@ -57,8 +57,8 @@ func main() {
   var target = params.String("target", "127.0.0.1:443", "Sending address for forwarder", "HOST:PORT")
   var verify_client = params.Bool("verify-client", true, "Verify client, do certificate checks", "BOOL")
   var secure_client = params.Bool("secure-client", true, "Enforce minimum of TLS 1.2 on client side", "BOOL")
-  // using -H and --host as options, all one needs to do is add a space
-  var tls_host = params.String("H host", "", "Hostname to verify outgoing connection with", "FQDN")
+  // To enable both -H and --host as options, all one needs to do is add a space "host" -> "host H"
+  var tls_host = params.String("host", "", "Hostname to verify outgoing connection with", "FQDN")
 
   // Start of our last grouping set
   params.GroupingSet("Certificate")
