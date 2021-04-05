@@ -94,7 +94,7 @@ func main() {
 This example was taken directly from the SSL-Forwarder program (below) so one may compare the output and see what it looks like in the finished product.
 
 # Real World Examples
-Here are some examples which demonstrate the power of this paramber parsing tool.
+Here are some examples which demonstrate the likeness of this parameter parsing tool:
 
 ## SSL-Forwarder -- https://github.com/pschou/ssl-forwarder
 ```
