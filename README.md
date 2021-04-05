@@ -30,6 +30,12 @@ the output of `curl`.
 
 Here is what it looks like when implemented:
 ```
+import (
+  ...
+  "github.com/pschou/go-params"
+  ...
+)
+
 var version = "0.0"
 func main() {
   // Set a custom header,
