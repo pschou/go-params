@@ -1,7 +1,16 @@
 go-params
 -----
 
-The package is a fork of the Go standard library flag and gnuflag.  As this
+# Introduction
+
+What would the module look like if GoLang provided a full-featured flag/parameter parsing package?  ... One which offers flexibility, simplicity while also maintaining the familiar look-and-feel other open-source packages provide.  We must clone the best we can the look and feel of other commonly used Linux packages to lower our users' learning curve and blend in with the rest of the technologies available.  Welcome to the solution, go-param.
+
+As there are many examples of programs that handle parameters differently, let us choose two commonly used
+packages of which to model and build a generic module to mimic.  The two selected are `ldapsearch` and `curl`.  The first has been around for over two decades, and the second is fairly new.  Both are well used and understood by the Linux community as a whole.  The goal here is to lower the bar of learning and make the flags operate as close as other linux tools operate to ease user's learning curve.  The goal is done!  With this `param` package, GoLang can output the same help and parse the same parameter inputs.
+
+# About
+
+This package is a fork of the Go standard library flag and gnuflag.  As this
 package is a rewrite to enable additional functionality and usability, one will find it is significantly different from the source.  The driving motivation was
 to provide a solution to the missing toolbox, an excellent flag parser that is simple and is very similar to other gnu programs.  Being very similar to other gnu programs lowers the learning curve for users to use flags in go-built-tools.  Modeled gnu programs used in the creation of this tool are the openldap and curl
 help flags.  As this is a personal project (aka no funding), my support time is limited!
@@ -12,21 +21,15 @@ This re-write includes some notable differences:
 
 - Support for both `--longflag` and `-l` single-character flag syntax.
 - Addition of "present" flag with no parameters needed.
-- Boolean flags always requires a boolean input, true, t, 1, false, f, or 0 with either a space ' ' or '=' seperator.
+- Boolean flags always require a boolean input, true, t, 1, false, f, or 0 with either space ' ' or '=' separator.
 - Flag stacking `-abc` is the same as `-a -b -c` for present flags.
 - Unicode support for inputs and printing with alignment.
 - Multiple flags for a single target value `-i, --include`.
 - Custom exemplars demonstrating the needed input type `--time DURATION   How long to wait for a reply.`
-- Custom definable functions to handle parsing of value.
-- Ability to allow more than one input per parameter `--port-range 1080 1090`.
+- Custom definable functions to handle the parsing of parameters.
+- Ability to allow more than one input per parameter `--port-range 1080 1090`, by using the custom var and the needed count.
 - Collect a dynamic number of strings per flag into a slice, like args after `--install pkgA pkgB pkgC --remove pkgX`.
-- Allow interspersed parameters, if set `-a data -b` is the same as `-a -b data`.
-
-# Background
-
-As there are many example of a programs that handle parameters differently, let us choose one commonly used
-package to build a toolbox from, `curl`.  This has been done; in this `param` package, GoLang can duplicate
-the output of `curl`.
+- Allow interspersed parameters if set `-a data -b` is the same as `-a -b data`.
 
 # Example
 
