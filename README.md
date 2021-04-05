@@ -1,5 +1,6 @@
 go-params
 -----
+POSIX compliant argument parser for Go!
 
 # Introduction
 
@@ -7,6 +8,22 @@ What would the module look like if GoLang provided a full-featured flag/paramete
 
 As there are many examples of programs that handle parameters differently, let us choose two commonly used
 packages of which to model and build a generic module to mimic.  The two selected are `ldapsearch` and `curl`.  The first has been around for over two decades, and the second is fairly new.  Both are well used and understood by the Linux community as a whole.  The goal here is to lower the bar of learning and make the flags operate as close as other linux tools operate to ease user's learning curve.  The goal is finished!  With this `param` package, GoLang can output the same help and parse the same parameter inputs.
+
+Src: https://www.gnu.org/software/libc/manual/html_node/Argument-Syntax.html
+
+> POSIX recommends these conventions for command line arguments. getopt (see Getopt) and argp_parse (see Argp) make it easy to implement them.
+>
+> - Arguments are options if they begin with a hyphen delimiter (‘-’).
+> - Multiple options may follow a hyphen delimiter in a single token if the options do not take arguments. Thus, ‘-abc’ is equivalent to ‘-a -b -c’.
+> - Option names are single alphanumeric characters (as for isalnum; see Classification of Characters).
+> - Certain options require an argument. For example, the ‘-o’ command of the ld command requires an argument—an output file name.
+> - An option and its argument may or may not appear as separate tokens. (In other words, the whitespace separating them is optional.) Thus, ‘-o foo’ and ‘-ofoo’ are equivalent.
+> - Options typically precede other non-option arguments.
+> - The implementations of getopt and argp_parse in the GNU C Library normally make it appear as if all the option arguments were specified before all the non-option arguments for the purposes of parsing, even if the user of your program intermixed option and non-option arguments. They do this by reordering the elements of the argv array. This behavior is nonstandard; if you want to suppress it, define the _POSIX_OPTION_ORDER environment variable. See Standard Environment.
+>
+> The argument ‘--’ terminates all options; any following arguments are treated as non-option arguments, even if they begin with a hyphen.
+> A token consisting of a single hyphen character is interpreted as an ordinary non-option argument. By convention, it is used to specify input from or output to the standard input and output streams.
+> Options may be supplied in any order, or appear multiple times. The interpretation is left up to the particular application program.
 
 # About
 
