@@ -25,6 +25,7 @@ func ExampleStringSlice() {
 	// Output:
 	// {install: []string{"a", "b", "d"}, remove: []string{"c"}}
 	//
+	// Options:
 	// -i, --install PACKAGES  List of packages to install
 	// -r, --remove PACKAGES  List of packages to install
 }

@@ -462,46 +462,46 @@ func TestHelp(t *testing.T) {
 }
 
 const defaultOutput = `Options:
--A      for bootstrapping, allow 'any' type  (Default: false)
+-A     for bootstrapping, allow 'any' type  (Default: false)
 --Alongflagname  disable bounds checking  (Default: false)
--C      a boolean defaulting to true  (Default: true)
--D      set relative path for local imports  (Default: "")
--E      issue 23543  (Default: "0")
+-C     a boolean defaulting to true  (Default: true)
+-D     set relative path for local imports  (Default: "")
+-E     issue 23543  (Default: "0")
 -F STR  issue 23543  (Default: "0")
--I      a non-zero number  (Default: 2.7)
--K      a float that defaults to zero  (Default: 0)
--世     a present flag
+-I     a non-zero number  (Default: 2.7)
+-K     a float that defaults to zero  (Default: 0)
+-世    a present flag
 Child options:
--M      a multiline
-        help
-        string  (Default: "")
--N      a non-zero int  (Default: 27)
--O      a flag
-        multiline help string  (Default: true)
--Z      an int that defaults to zero  (Default: 0)
+-M     a multiline
+       help
+       string  (Default: "")
+-N     a non-zero int  (Default: 27)
+-O     a flag
+       multiline help string  (Default: true)
+-Z     an int that defaults to zero  (Default: 0)
 --世界  unicode string  (Default: "hello")
 Non-standard option:
 --maxT  set timeout for dial  (Default: 0s)
 `
 
-const defaultOutputMixed = `-A        for bootstrapping, allow 'any' type  (Default: false)
+const defaultOutputMixed = `-A       for bootstrapping, allow 'any' type  (Default: false)
     --Alongflagname  disable bounds checking  (Default: false)
--C        a boolean defaulting to true  (Default: true)
--D        set relative path for local imports  (Default: "")
--E        issue 23543  (Default: "0")
--F STR    issue 23543  (Default: "0")
--I        a non-zero number  (Default: 2.7)
--K        a float that defaults to zero  (Default: 0)
--M        a multiline
-          help
-          string  (Default: "")
--N        a non-zero int  (Default: 27)
--O        a flag
-          multiline help string  (Default: true)
--Z        an int that defaults to zero  (Default: 0)
+-C       a boolean defaulting to true  (Default: true)
+-D       set relative path for local imports  (Default: "")
+-E       issue 23543  (Default: "0")
+-F STR   issue 23543  (Default: "0")
+-I       a non-zero number  (Default: 2.7)
+-K       a float that defaults to zero  (Default: 0)
+-M       a multiline
+         help
+         string  (Default: "")
+-N       a non-zero int  (Default: 27)
+-O       a flag
+         multiline help string  (Default: true)
+-Z       an int that defaults to zero  (Default: 0)
 -G, --grind STR  issue 23543  (Default: "0")
     --maxT  set timeout for dial  (Default: 0s)
--世       a present flag
+-世      a present flag
     --世界  unicode string  (Default: "hello")
 `
 const defaultOutputMixedIndent = `-A          for bootstrapping, allow 'any' type  (Default: false)
@@ -538,17 +538,17 @@ func TestPrintDefaults(t *testing.T) {
 	fs.String("F", "0", "issue 23543", "STR")
 	fs.Float64("I", 2.7, "a non-zero number", "")
 	fs.Float64("K", 0, "a float that defaults to zero", "")
-	fs.SetGrouping("Child")
+	fs.GroupingSet("Child")
 	fs.String("M", "", "a multiline\nhelp\nstring", "")
 	fs.Int("N", 27, "a non-zero int", "")
 	fs.Bool("O", true, "a flag\nmultiline help string", "")
 	fs.String("世界", "hello", "unicode string", "")
 	fs.Int("Z", 0, "an int that defaults to zero", "")
-	fs.SetGrouping("Non-standard")
+	fs.GroupingSet("Non-standard")
 	fs.Duration("maxT", 0, "set timeout for dial", "")
 	fs.PrintDefaults()
 	got := buf.String()
-	fmt.Println(got) // DEBUG
+	//fmt.Println(got) // DEBUG
 	if got != defaultOutput {
 		t.Errorf("got %q want %q\n", got, defaultOutput)
 	}
@@ -597,7 +597,7 @@ func TestUsageOutput(t *testing.T) {
 	defer func(old []string) { os.Args = old }(os.Args)
 	os.Args = []string{"app", "-i1", "-unknown"}
 	Parse()
-	const want = "parameter provided but not defined: -i\nUsage of app:\n"
+	const want = "parameter provided but not defined: -i\nUsage:\n  app [options...] [args...]\n"
 	if got := buf.String(); got != want {
 		t.Errorf("output = %q; want %q", got, want)
 	}

@@ -650,7 +650,7 @@ loop_formals:
 		}
 		stdDev = math.Pow(stdDev/float64(len(nameAndTypeLen)), 2)
 
-		usageIndent = int(avgLen + stdDev*2)
+		usageIndent = int(avgLen + stdDev*1.6)
 	} else {
 		usageIndent = f.UsageIndent
 	}
