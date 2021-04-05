@@ -2,8 +2,10 @@ go-params
 -----
 
 The package is a fork of the Go standard library flag and gnuflag.  As this
-package is a rewrite to enable additional functionality and usability, it is
-not backwards compatible.
+package is a rewrite to enable additional functionality and usability.  The driving motivation was
+to provide a solution to the missing toolbox for a good flag parser that is both simple and doesn't
+differ from other gnu programs.  Some models used in the creation of this tool is the openldap and curl
+help flags.  This is a personal project (aka: no funding), and thus my support time is limited!
 
 # Goals
 
