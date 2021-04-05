@@ -28,6 +28,34 @@ the output of `curl`.
 # Real World Examples
 Here are some examples which demonstrate the power of this paramber parsing tool.
 
+## Prom-collector -- https://github.com/pschou/prom-collector
+```
+$ ./prom-collector -h
+Prometheus Collector, written by Paul Schou (github.com/pschou/prom-collector) in December 2020
+Prsonal use only, provided AS-IS -- not responsible for loss.
+Usage implies agreement.
+
+Usage: ./prom-collector [options...]
+
+Options:
+--ca FILE             File to load with ROOT CAs - reloaded every minute by adding any new entries
+                        (Default: "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem")
+--cert FILE           File to load with CERT - automatically reloaded every minute
+                        (Default: "/etc/pki/server.pem")
+--debug               Verbose output
+--json JSON_FILE      Path into which to put all the prometheus endpoints for polling
+                        (Default: "/dev/shm/metrics.json")
+--key FILE            File to load with KEY - automatically reloaded every minute
+                        (Default: "/etc/pki/server.pem")
+--listen HOST:PORT    Listen address for metrics  (Default: ":9550")
+--path DIRECTORY      Path into which to put the prometheus data  (Default: "/dev/shm/collector")
+--prefix URL_PREFIX   Used for all incoming requests, useful for a reverse proxy endpoint
+                        (Default: "/collector")
+--secure-server BOOL  Enforce TLS 1.2+ on server side  (Default: true)
+--tls BOOL            Enable listener TLS  (Default: false)
+--verify-server BOOL  Verify or disable server certificate check  (Default: true)
+```
+
 ## jqURL -- https://github.com/pschou/jqURL
 ```
 $ jqurl -h
@@ -91,32 +119,6 @@ Certificate options:
                             (Default: "/etc/pki/server.pem")
 ```
 
-## Prom-collector -- https://github.com/pschou/prom-collector
-```
-$ ./prom-collector -h
-Prometheus Collector - written by Paul Schou (github.com/pschou/prom-collector) in December 2020
-Prsonal use only, provided AS-IS -- not responsible for loss.
-Usage implies agreement.
-
- Usage of ./prom-collector:
-Options:
---ca FILE             File to load with ROOT CAs - reloaded every minute by adding any new entries
-                        (Default: "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem")
---cert FILE           File to load with CERT - automatically reloaded every minute
-                        (Default: "/etc/pki/server.pem")
---debug               Verbose output
---json JSON_FILE      Path into which to put all the prometheus endpoints for polling
-                        (Default: "/dev/shm/metrics.json")
---key FILE            File to load with KEY - automatically reloaded every minute
-                        (Default: "/etc/pki/server.pem")
---listen HOST:PORT    Listen address for metrics  (Default: ":9550")
---path DIRECTORY      Path into which to put the prometheus data  (Default: "/dev/shm/collector")
---prefix URL_PREFIX   Used for all incoming requests, useful for a reverse proxy endpoint
-                        (Default: "/collector")
---secure-server BOOL  Enforce TLS 1.2+ on server side  (Default: true)
---tls BOOL            Enable listener TLS  (Default: false)
---verify-server BOOL  Verify or disable server certificate check  (Default: true)
-```
 
 
 Full documentation can be found here: https://godoc.org/github.com/pschou/go-param.
