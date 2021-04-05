@@ -184,7 +184,7 @@ Certificate options:
       --key FILE       Key file for client cert, PEM encoded  (Default="")
 ```
 
-Last, but not least, an test example using some unicode:
+Last, but not least, a test example using some unicode:
 ```
 -A          for bootstrapping, allow 'any' type  (Default: false)
     --Alongflagname  disable bounds checking  (Default: false)
