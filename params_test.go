@@ -44,7 +44,7 @@ func TestEverything(t *testing.T) {
 	String("test_string", "0", "string value", "")
 	Float64("test_float64", 0, "float64 value", "")
 	Duration("test_duration", 0, "time.Duration value", "")
-	Func("test_func", "func value", "", 1, func([]string) error { return nil })
+	FlagFunc("test_func", "func value", "", 1, func([]string) error { return nil })
 
 	m := make(map[string]*Flag)
 	desired := "0"
@@ -272,7 +272,7 @@ func TestUserDefinedFunc(t *testing.T) {
 	var flags FlagSet
 	flags.Init("test", ContinueOnError)
 	var ss []string
-	flags.Func("v", "usage", "", 1, func(s []string) error {
+	flags.FlagFunc("v", "usage", "", 1, func(s []string) error {
 		ss = append(ss, s[0])
 		return nil
 	})
@@ -295,7 +295,7 @@ func TestUserDefinedFunc(t *testing.T) {
 	}
 	// test Func error
 	flags = *NewFlagSet("test", ContinueOnError)
-	flags.Func("v", "usage", "", 1, func(s []string) error {
+	flags.FlagFunc("v", "usage", "", 1, func(s []string) error {
 		return fmt.Errorf("test error")
 	})
 	// flag not set, so no error

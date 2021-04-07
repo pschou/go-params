@@ -251,11 +251,11 @@ func (d *durationValue) Get() interface{} { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
-type funcValue func([]string) error
+type flagFuncValue func([]string) error
 
-func (f funcValue) Set(s []string) error { return f(s) }
+func (f flagFuncValue) Set(s []string) error { return f(s) }
 
-func (f funcValue) String() string { return "" }
+func (f flagFuncValue) String() string { return "" }
 
 // Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
@@ -329,13 +329,23 @@ type FlagSet struct {
 
 // A Flag represents the state of a flag.
 type Flag struct {
-	Name         []string // name as it appears on command line
-	Usage        string   // help message
-	Value        Value    // value as set
-	DefValue     string   // default value (as text); for usage message
-	TypeExpected string   // helpful hint on what is expected
-	ArgsNeeded   int      // arg count wanted
-	Grouping     string   // organize flags into groups
+	Name         []string                      // name as it appears on command line
+	Usage        string                        // help message
+	Value        Value                         // value as set
+	DefValue     string                        // default value
+	TypeExpected string                        // helpful hint on what is expected
+	ArgsNeeded   int                           // arg count wanted
+	Grouping     string                        // organize flags into groups
+	Options      func(string, string) []string // function to return possible outcomes for bash completion
+}
+
+type Param struct {
+	Usage        string                               // help message
+	Value        Value                                // value as set
+	DefValue     string                               // default value
+	TypeExpected string                               // helpful hint on what is expected
+	Options      func([]Flag, []string) []string      // Get options for bash completion
+	Test         func([]Flag, []string) (bool, error) // Options
 }
 
 // splitOn, reads out a string and returns a slice
@@ -745,7 +755,7 @@ loop_formals:
 				// put quotes on string values
 				format := "%s%s  (%s%q)\n"
 				fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
-			} else if _, ok := fs.Value.(funcValue); ok {
+			} else if _, ok := fs.Value.(flagFuncValue); ok {
 				// put quotes on empty func values
 				format := "%s%s  (%s%q)\n"
 				fmt.Fprintf(f.Output(), format, line.Bytes(), usage, Default, fs.DefValue)
@@ -1013,28 +1023,34 @@ func String(name string, value string, usage string, typeExp string) *string {
 
 // StringSliceVar defines a string flag with specified name, default value, and usage string.
 // The argument p points to a string variable in which to store the value of the flag.
-func (f *FlagSet) StringSliceVar(p *([]string), name string, usage string, typeExp string) {
-	f.Var(newStringSliceValue([]string{}, p), name, usage, typeExp, -1)
+func (f *FlagSet) StringSliceVar(p *([]string), name string, usage string, typeExp string, perFlag int) {
+	if perFlag <= 0 {
+		perFlag = -1
+	}
+	f.Var(newStringSliceValue([]string{}, p), name, usage, typeExp, perFlag)
 }
 
 // StringSliceVar defines a string flag with specified name, default value, and usage string.
 // The argument p points to a string variable in which to store the value of the flag.
-func StringSliceVar(p *([]string), name string, usage string, typeExp string) {
-	CommandLine.Var(newStringSliceValue([]string{}, p), name, usage, typeExp, -1)
+func StringSliceVar(p *([]string), name string, usage string, typeExp string, perFlag int) {
+	if perFlag <= 0 {
+		perFlag = -1
+	}
+	CommandLine.Var(newStringSliceValue([]string{}, p), name, usage, typeExp, perFlag)
 }
 
 // StringSlice defines a string flag with specified name, default value, and usage string.
 // The return value is the address of a string variable that stores the value of the flag.
-func (f *FlagSet) StringSlice(name string, usage string, typeExp string) *[]string {
+func (f *FlagSet) StringSlice(name string, usage string, typeExp string, perFlag int) *[]string {
 	p := new([]string)
-	f.StringSliceVar(p, name, usage, typeExp)
+	f.StringSliceVar(p, name, usage, typeExp, perFlag)
 	return p
 }
 
 // StringSlice defines a string flag with specified name, default value, and usage string.
 // The return value is the address of a string variable that stores the value of the flag.
-func StringSlice(name string, usage string, typeExp string) *[]string {
-	return CommandLine.StringSlice(name, usage, typeExp)
+func StringSlice(name string, usage string, typeExp string, perFlag int) *[]string {
+	return CommandLine.StringSlice(name, usage, typeExp, perFlag)
 }
 
 // Float64Var defines a float64 flag with specified name, default value, and usage string.
@@ -1089,18 +1105,18 @@ func Duration(name string, value time.Duration, usage string, typeExp string) *t
 	return CommandLine.Duration(name, value, usage, typeExp)
 }
 
-// Func defines a flag with the specified name and usage string.
+// FlagFunc defines a flag with the specified name and usage string.
 // Each time the flag is seen, fn is called with the value of the flag.
 // If fn returns a non-nil error, it will be treated as a flag value parsing error.
-func (f *FlagSet) Func(name, usage string, typeExp string, argsNeeded int, fn func([]string) error) {
-	f.Var(funcValue(fn), name, usage, typeExp, argsNeeded)
+func (f *FlagSet) FlagFunc(name, usage string, typeExp string, argsNeeded int, fn func([]string) error) {
+	f.Var(flagFuncValue(fn), name, usage, typeExp, argsNeeded)
 }
 
-// Func defines a flag with the specified name and usage string.
+// FlagFunc defines a flag with the specified name and usage string.
 // Each time the flag is seen, fn is called with the value of the flag.
 // If fn returns a non-nil error, it will be treated as a flag value parsing error.
-func Func(name, usage string, typeExp string, argsNeeded int, fn func([]string) error) {
-	CommandLine.Func(name, usage, typeExp, argsNeeded, fn)
+func FlagFunc(name, usage string, typeExp string, argsNeeded int, fn func([]string) error) {
+	CommandLine.FlagFunc(name, usage, typeExp, argsNeeded, fn)
 }
 
 // Var defines a flag with the specified name and usage string. The type and
@@ -1248,6 +1264,25 @@ func (f *FlagSet) parseOne() (flagName string, long, finished bool, err error) {
 	return
 }
 
+func contains(a []string, b []string) bool {
+	found := false
+contains_outer:
+	for _, B := range a {
+		found = false
+		for _, A := range a {
+			if A == B {
+				found = true
+				continue contains_outer
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return found
+}
+
 func flagWithMinus(name string) string {
 	if rlen(name) > 1 {
 		return "--" + name
@@ -1262,6 +1297,34 @@ func (f *FlagSet) parseFlagArg(name string, long bool) (finished bool, err error
 			f.usage()
 			ErrHelp = errors.New(fmt.Sprintf("%v: %v", f.FlagKnownAs, ErrHelp.Error()))
 			return false, ErrHelp
+		}
+		if name == "get-bash-completion" {
+			if contains(os.Environ(),
+				[]string{"COMP_TYPE", "COMP_LINE", "COMP_POINT", "COMP_KEY"}) {
+				if len(os.Args) >= 3 {
+					if len(os.Args[3]) > 0 && strings.HasPrefix("-", os.Args[3]) {
+						fmt.Println("--")
+					}
+					for _, flag := range f.formal {
+						for _, name := range flag.Name {
+							if len(os.Args[3]) > 0 && strings.HasPrefix(flagWithMinus(name), os.Args[3]) {
+								fmt.Println(flagWithMinus(name))
+							}
+						}
+					}
+				}
+			}
+			os.Exit(0)
+			//fmt.Fprintf(os.Stderr, "go\nmake\nmy day\n")
+			//fmt.Printf("makeme\n")
+			fmt.Printf("&&go -- test\nmake -- my\nmy day -- plac3\n")
+			fmt.Fprintf(os.Stderr, "%#v\n", os.Args)
+			for _, e := range os.Environ() {
+				if strings.HasPrefix(e, "COM") {
+					pair := strings.SplitN(e, "=", 2)
+					fmt.Fprintf(os.Stderr, "  %v=%q\n", pair[0], pair[1])
+				}
+			}
 		}
 		// Print --xxx when flag is more than one rune.
 		return false, f.failf("%v provided but not defined: %s",

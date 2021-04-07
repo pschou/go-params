@@ -17,7 +17,7 @@ func ExampleFunc() {
 	fs.SetOutput(os.Stdout)
 	var ip net.IP
 	// Allow both flags -h and --ip by using "h ip" instead of "ip"
-	fs.Func("ip", "`IP address` to parse", "ADDR", 1, func(s []string) error {
+	fs.FlagFunc("ip", "`IP address` to parse", "ADDR", 1, func(s []string) error {
 		ip = net.ParseIP(s[0])
 		if ip == nil {
 			return errors.New("could not parse IP")
