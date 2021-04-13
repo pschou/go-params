@@ -41,6 +41,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -290,6 +291,7 @@ type FlagSet struct {
 	Usage func()
 
 	name             string
+	Title            string
 	parsed           bool
 	actual           []*Flag
 	formal           []*Flag
@@ -788,7 +790,18 @@ func defaultUsage(f *FlagSet) {
 // Usage prints to standard error a usage message documenting all defined command-line flags.
 // The function is a variable that may be changed to point to a custom function.
 var Usage = func() {
-	fmt.Fprintf(CommandLine.Output(), "Usage:\n  %s [options...] [args...]\n", os.Args[0])
+	if len(CommandLine.Title) > 0 {
+		fmt.Fprintf(CommandLine.Output(), "%s\n\n", CommandLine.Title)
+	}
+	post := ""
+	if len(CommandLine.args) > 0 {
+		post = "[options...] [args...]"
+	} else if len(CommandLine.formal) > 1 {
+		post = "[options...]"
+	} else {
+		post = "[option]"
+	}
+	fmt.Fprintf(CommandLine.Output(), "Usage: %s %s\n", path.Base(os.Args[0]), post)
 	PrintDefaults()
 }
 
@@ -1495,6 +1508,7 @@ func NewFlagSet(name string, errorHandling ErrorHandling) *FlagSet {
 // 'value for option' not 'value for param'.
 func NewFlagSetWithFlagKnownAs(name string, errorHandling ErrorHandling, aka string) *FlagSet {
 	f := &FlagSet{
+		Title:           "",
 		name:            name,
 		errorHandling:   errorHandling,
 		FlagKnownAs:     aka,
@@ -1504,6 +1518,7 @@ func NewFlagSetWithFlagKnownAs(name string, errorHandling ErrorHandling, aka str
 		mulock:          new(sync.Mutex),
 		ShowGroupings:   true,
 		GroupingHeaders: defaultGroupingHeaders,
+		Indent:          2,
 	}
 	return f
 }
