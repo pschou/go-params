@@ -2,6 +2,8 @@ go-params
 -----
 POSIX compliant argument parser for Go!
 
+Usage Documentation: https://pkg.go.dev/github.com/pschou/go-params
+
 # Introduction
 
 What would the module look like if GoLang provided a full-featured flag/parameter parsing package?  What if it offers flexibility, simplicity while also maintaining the familiar look-and-feel other open-source packages provide?  As programmers, we must provide that comfort level to our users, match the look-and-feel used by other commonly used Linux packages.  This a community effort as by matching other common usage packages, we ultimately lower our users' learning curve and blend in with the rest of the technologies available.  Welcome to the solution for GoLang that does just this, go-param.
@@ -228,6 +230,3 @@ Last, but not least, a test example using some unicode:
     --世界  unicode string  (Default: "hello")
 ```
 
-
-
-Full documentation can be found here: https://godoc.org/github.com/pschou/go-param.
