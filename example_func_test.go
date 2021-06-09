@@ -20,7 +20,7 @@ func ExampleFunc() {
 	fs.FlagFunc("ip", "`IP address` to parse", "ADDR", 1, func(s []string) error {
 		ip = net.ParseIP(s[0])
 		if ip == nil {
-			return errors.New("could not parse IP")
+			return errors.New("could not parse IP: " + s[0])
 		}
 		return nil
 	})
@@ -34,8 +34,8 @@ func ExampleFunc() {
 	// Output:
 	// {ip: 127.0.0.1, loopback: true}
 	//
-	// invalid value "256.0.0.1" for parameter --ip: could not parse IP
+	// invalid value "256.0.0.1" for parameter --ip: could not parse IP: 256.0.0.1
 	// Option:
-	// --ip ADDR  `IP address` to parse  (Default: "")
+	//   --ip ADDR  `IP address` to parse  (Default: "")
 	// {ip: <nil>, loopback: false}
 }

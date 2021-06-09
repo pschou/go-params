@@ -37,7 +37,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/pschou/go-runewidth"
+	"github.com/mattn/go-runewidth"
 	"io"
 	"math"
 	"os"
@@ -296,7 +296,8 @@ type FlagSet struct {
 	actual           []*Flag
 	formal           []*Flag
 	nameList         []string
-	args             []string // arguments after flags
+	Params           []Param // argument parsers for after flags
+	args             []string
 	procArgs         []string // arguments being processed (gnu only)
 	procFlag         string   // flag being processed (gnu only)
 	allowIntersperse bool     // (gnu only)
@@ -342,12 +343,13 @@ type Flag struct {
 }
 
 type Param struct {
-	Usage        string                               // help message
-	Value        Value                                // value as set
-	DefValue     string                               // default value
-	TypeExpected string                               // helpful hint on what is expected
-	Options      func([]Flag, []string) []string      // Get options for bash completion
-	Test         func([]Flag, []string) (bool, error) // Options
+	Usage        string                                                  // help message
+	Value        Value                                                   // value as set
+	DefValue     string                                                  // default value
+	TypeExpected string                                                  // helpful hint on what is expected
+	Options      []string                                                // Available options for tab-fill
+	OptionsFunc  func(flagsSeen []Flag, argsSeen []string) []string      // Get options for bash completion
+	Test         func(flagsSeen []Flag, argsSeen []string) (bool, error) // Options
 }
 
 // splitOn, reads out a string and returns a slice
@@ -794,7 +796,7 @@ var Usage = func() {
 		fmt.Fprintf(CommandLine.Output(), "%s\n\n", CommandLine.Title)
 	}
 	post := ""
-	if len(CommandLine.args) > 0 {
+	if len(CommandLine.Params) > 0 {
 		post = "[options...] [args...]"
 	} else if len(CommandLine.formal) > 1 {
 		post = "[options...]"
@@ -828,7 +830,7 @@ func NFlag() int { return len(CommandLine.actual) }
 // Arg returns the i'th argument.  Arg(0) is the first remaining argument
 // after flags have been processed.
 func (f *FlagSet) Arg(i int) string {
-	if i < 0 || i >= len(f.args) {
+	if i < 0 || i >= len(f.Params) {
 		return ""
 	}
 	return f.args[i]

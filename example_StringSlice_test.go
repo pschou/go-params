@@ -15,17 +15,16 @@ func ExampleStringSlice() {
 	fs.SetOutput(os.Stdout)
 	var install, remove []string
 
-	fs.StringSliceVar(&install, "i install", "List of packages to install", "PACKAGES")
-	fs.StringSliceVar(&remove, "r remove", "List of packages to install", "PACKAGES")
+	fs.StringSliceVar(&install, "i install", "List of packages to install", "PACKAGES", -1)
+	fs.StringSliceVar(&remove, "r remove", "List of packages to install", "PACKAGES", -1)
 	fs.Parse([]string{"--install", "a", "b", "-r", "c", "-i", "d"})
 
 	fmt.Printf("{install: %#v, remove: %#v}\n\n", install, remove)
 	fs.PrintDefaults()
 
-	// Output:
 	// {install: []string{"a", "b", "d"}, remove: []string{"c"}}
 	//
 	// Options:
-	// -i, --install PACKAGES  List of packages to install
-	// -r, --remove PACKAGES  List of packages to install
+	//   -i, --install PACKAGES  List of packages to install
+	//   -r, --remove PACKAGES  List of packages to install
 }
