@@ -37,7 +37,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/mattn/go-runewidth"
 	"io"
 	"math"
 	"os"
@@ -48,6 +47,9 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/mattn/go-runewidth"
+	"github.com/xhit/go-str2duration"
 )
 
 // ErrHelp is the error returned if the -help or -h flag is invoked
@@ -243,7 +245,7 @@ func newDurationValue(val time.Duration, p *time.Duration) *durationValue {
 }
 
 func (d *durationValue) Set(s []string) error {
-	v, err := time.ParseDuration(s[0])
+	v, err := str2duration.ParseDuration(s[0])
 	*d = durationValue(v)
 	return err
 }
@@ -830,7 +832,7 @@ func NFlag() int { return len(CommandLine.actual) }
 // Arg returns the i'th argument.  Arg(0) is the first remaining argument
 // after flags have been processed.
 func (f *FlagSet) Arg(i int) string {
-	if i < 0 || i >= len(f.Params) {
+	if i < 0 || i >= len(f.args) {
 		return ""
 	}
 	return f.args[i]

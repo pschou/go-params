@@ -7,6 +7,7 @@ package params_test
 import (
 	"bytes"
 	"fmt"
+
 	//"github.com/pschou/go-params"
 	. "go-params"
 	//"internal/testenv"
@@ -427,7 +428,7 @@ func TestChangingArgs(t *testing.T) {
 	args := Args()
 
 	if !*before || cmd != "subcmd" || !*after || len(args) != 1 || args[0] != "args" {
-		t.Fatalf("expected true subcmd true [args] got %v %v %v %v", *before, cmd, *after, args)
+		t.Fatalf("expected \"true subcmd true [args]\" got \"%v %v %v %v\"", *before, cmd, *after, args)
 	}
 }
 
@@ -474,69 +475,11 @@ func TestHelp(t *testing.T) {
 	}
 }
 
-const defaultOutput = `Options:
--A     for bootstrapping, allow 'any' type  (Default: false)
---Alongflagname  disable bounds checking  (Default: false)
--C     a boolean defaulting to true  (Default: true)
--D     set relative path for local imports  (Default: "")
--E     issue 23543  (Default: "0")
--F STR  issue 23543  (Default: "0")
--I     a non-zero number  (Default: 2.7)
--K     a float that defaults to zero  (Default: 0)
--世    a present flag
-Child options:
--M     a multiline
-       help
-       string  (Default: "")
--N     a non-zero int  (Default: 27)
--O     a flag
-       multiline help string  (Default: true)
--Z     an int that defaults to zero  (Default: 0)
---世界  unicode string  (Default: "hello")
-Non-standard option:
---maxT  set timeout for dial  (Default: 0s)
-`
+const defaultOutput = "Options:\n  -A     for bootstrapping, allow 'any' type  (Default: false)\n  --Alongflagname  disable bounds checking  (Default: false)\n  -C     a boolean defaulting to true  (Default: true)\n  -D     set relative path for local imports  (Default: \"\")\n  -E     issue 23543  (Default: \"0\")\n  -F STR  issue 23543  (Default: \"0\")\n  -I     a non-zero number  (Default: 2.7)\n  -K     a float that defaults to zero  (Default: 0)\n  -世    a present flag\nChild options:\n  -M     a multiline\n         help\n         string  (Default: \"\")\n  -N     a non-zero int  (Default: 27)\n  -O     a flag\n         multiline help string  (Default: true)\n  -Z     an int that defaults to zero  (Default: 0)\n  --世界  unicode string  (Default: \"hello\")\nNon-standard option:\n  --maxT  set timeout for dial  (Default: 0s)\n"
 
-const defaultOutputMixed = `-A       for bootstrapping, allow 'any' type  (Default: false)
-    --Alongflagname  disable bounds checking  (Default: false)
--C       a boolean defaulting to true  (Default: true)
--D       set relative path for local imports  (Default: "")
--E       issue 23543  (Default: "0")
--F STR   issue 23543  (Default: "0")
--I       a non-zero number  (Default: 2.7)
--K       a float that defaults to zero  (Default: 0)
--M       a multiline
-         help
-         string  (Default: "")
--N       a non-zero int  (Default: 27)
--O       a flag
-         multiline help string  (Default: true)
--Z       an int that defaults to zero  (Default: 0)
--G, --grind STR  issue 23543  (Default: "0")
-    --maxT  set timeout for dial  (Default: 0s)
--世      a present flag
-    --世界  unicode string  (Default: "hello")
-`
-const defaultOutputMixedIndent = `-A          for bootstrapping, allow 'any' type  (Default: false)
-    --Alongflagname  disable bounds checking  (Default: false)
--C          a boolean defaulting to true  (Default: true)
--D          set relative path for local imports  (Default: "")
--E          issue 23543  (Default: "0")
--F STR      issue 23543  (Default: "0")
--I          a non-zero number  (Default: 2.7)
--K          a float that defaults to zero  (Default: 0)
--M          a multiline
-            help
-            string  (Default: "")
--N          a non-zero int  (Default: 27)
--O          a flag
-            multiline help string  (Default: true)
--Z          an int that defaults to zero  (Default: 0)
--G, --grind STR  issue 23543  (Default: "0")
-    --maxT  set timeout for dial  (Default: 0s)
--世         a present flag
-    --世界  unicode string  (Default: "hello")
-`
+const defaultOutputMixed = "  -A       for bootstrapping, allow 'any' type  (Default: false)\n      --Alongflagname  disable bounds checking  (Default: false)\n  -C       a boolean defaulting to true  (Default: true)\n  -D       set relative path for local imports  (Default: \"\")\n  -E       issue 23543  (Default: \"0\")\n  -F STR   issue 23543  (Default: \"0\")\n  -I       a non-zero number  (Default: 2.7)\n  -K       a float that defaults to zero  (Default: 0)\n  -M       a multiline\n           help\n           string  (Default: \"\")\n  -N       a non-zero int  (Default: 27)\n  -O       a flag\n           multiline help string  (Default: true)\n  -Z       an int that defaults to zero  (Default: 0)\n  -G, --grind STR  issue 23543  (Default: \"0\")\n      --maxT  set timeout for dial  (Default: 0s)\n  -世      a present flag\n      --世界  unicode string  (Default: \"hello\")\n"
+
+const defaultOutputMixedIndent = "  -A        for bootstrapping, allow 'any' type  (Default: false)\n      --Alongflagname  disable bounds checking  (Default: false)\n  -C        a boolean defaulting to true  (Default: true)\n  -D        set relative path for local imports  (Default: \"\")\n  -E        issue 23543  (Default: \"0\")\n  -F STR    issue 23543  (Default: \"0\")\n  -I        a non-zero number  (Default: 2.7)\n  -K        a float that defaults to zero  (Default: 0)\n  -M        a multiline\n            help\n            string  (Default: \"\")\n  -N        a non-zero int  (Default: 27)\n  -O        a flag\n            multiline help string  (Default: true)\n  -Z        an int that defaults to zero  (Default: 0)\n  -G, --grind STR  issue 23543  (Default: \"0\")\n      --maxT  set timeout for dial  (Default: 0s)\n  -世       a present flag\n      --世界  unicode string  (Default: \"hello\")\n"
 
 func TestPrintDefaults(t *testing.T) {
 	fs := NewFlagSet("print defaults test", ContinueOnError)
@@ -563,7 +506,7 @@ func TestPrintDefaults(t *testing.T) {
 	got := buf.String()
 	//fmt.Println(got) // DEBUG
 	if got != defaultOutput {
-		t.Errorf("got %q want %q\n", got, defaultOutput)
+		t.Errorf("got %q\n\nwant %q\n", got, defaultOutput)
 	}
 	fs.ShowGroupings = false
 
@@ -573,7 +516,7 @@ func TestPrintDefaults(t *testing.T) {
 	got = buf.String()
 	//fmt.Println(got) // DEBUG
 	if got != defaultOutputMixed {
-		t.Errorf("got %q want %q\n", got, defaultOutputMixed)
+		t.Errorf("got %q\n\nwant %q\n", got, defaultOutputMixed)
 	}
 
 	buf.Reset()
@@ -582,7 +525,7 @@ func TestPrintDefaults(t *testing.T) {
 	got = buf.String()
 	//fmt.Println(got) // DEBUG
 	if got != defaultOutputMixedIndent {
-		t.Errorf("got %q want %q\n", got, defaultOutputMixedIndent)
+		t.Errorf("got %q\n\nwant %q\n", got, defaultOutputMixedIndent)
 	}
 }
 
@@ -610,7 +553,7 @@ func TestUsageOutput(t *testing.T) {
 	defer func(old []string) { os.Args = old }(os.Args)
 	os.Args = []string{"app", "-i1", "-unknown"}
 	Parse()
-	const want = "parameter provided but not defined: -i\nUsage:\n  app [options...] [args...]\n"
+	const want = "parameter provided but not defined: -i\nUsage: app [option]\n"
 	if got := buf.String(); got != want {
 		t.Errorf("output = %q; want %q", got, want)
 	}
