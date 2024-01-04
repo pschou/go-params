@@ -245,7 +245,7 @@ func newDurationValue(val time.Duration, p *time.Duration) *durationValue {
 }
 
 func (d *durationValue) Set(s []string) error {
-	v, err := str2duration.ParseDuration(s[0])
+	v, err := str2duration.Str2Duration(s[0])
 	*d = durationValue(v)
 	return err
 }

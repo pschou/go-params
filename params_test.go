@@ -8,8 +8,6 @@ import (
 	"bytes"
 	"fmt"
 
-	//"github.com/pschou/go-params"
-	. "go-params"
 	//"internal/testenv"
 	"io"
 	"os"
@@ -20,6 +18,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pschou/go-params"
 )
 
 type Discard struct{}
